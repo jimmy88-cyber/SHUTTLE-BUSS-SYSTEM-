@@ -14,6 +14,7 @@ import AdminBookings from "./pages/admin/AdminBookings";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminEmployees from "./pages/admin/AdminEmployees";
 import AdminBoarding from "./pages/admin/AdminBoarding";
+import AdminReports from "./pages/admin/AdminReports";
 import "./index.css";
 
 export default function App() {
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/admin/users" element={<AdminUsers />} />
         <Route path="/admin/employees" element={<AdminEmployees />} />
         <Route path="/admin/boarding" element={<AdminBoarding />} />
+        <Route path="/admin/reports" element={<AdminReports />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

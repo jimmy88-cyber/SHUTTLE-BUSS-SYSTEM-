@@ -1,15 +1,16 @@
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { getUser, clearUser } from '../api/auth';
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { getUser, clearUser } from "../api/auth";
 
 const MENU = [
-  { path: '/admin', label: '📊 แดชบอร์ด', exact: true },
-  { path: '/admin/vehicles', label: '🚌 จัดการรถ' },
-  { path: '/admin/routes', label: '🗺️ เส้นทาง' },
-  { path: '/admin/trips', label: '📅 รอบรถ' },
-  { path: '/admin/bookings', label: '🎫 การจอง' },
-  { path: '/admin/users', label: '🧑‍🎓 ผู้ใช้บริการ' },
-  { path: '/admin/employees', label: '👥 พนักงาน' },
-  { path: '/admin/boarding', label: '✅ ขึ้นรถ' },
+  { path: "/admin", label: "📊 แดชบอร์ด", exact: true },
+  { path: "/admin/vehicles", label: "🚌 จัดการรถและประเภท" },
+  { path: "/admin/routes", label: "🗺️ เส้นทาง" },
+  { path: "/admin/trips", label: "📅 รอบรถ" },
+  { path: "/admin/bookings", label: "🎫 การจอง" },
+  { path: "/admin/users", label: "🧑‍🎓 ผู้ใช้บริการ" },
+  { path: "/admin/employees", label: "👥 พนักงาน" },
+  { path: "/admin/boarding", label: "✅ ขึ้นรถ" },
+  { path: "/admin/reports", label: "📈 รายงาน" },
 ];
 
 export default function AdminLayout({ title, subtitle, children }) {
@@ -18,14 +19,14 @@ export default function AdminLayout({ title, subtitle, children }) {
   const location = useLocation();
 
   if (!user) {
-    navigate('/');
+    navigate("/");
     return null;
   }
 
   function logout() {
-    if (!confirm('ออกจากระบบ?')) return;
+    if (!confirm("ออกจากระบบ?")) return;
     clearUser();
-    navigate('/');
+    navigate("/");
   }
 
   function isActive(item) {
@@ -37,13 +38,23 @@ export default function AdminLayout({ title, subtitle, children }) {
     <div className="admin-shell">
       <nav className="admin-navbar">
         <div className="admin-navbar-inner">
-          <div className="admin-brand">🚌 <span>Shuttle</span> Admin</div>
+          <div className="admin-brand">
+            🚌 <span>Shuttle</span> Admin
+          </div>
           <div className="admin-user">
-            <div className="avatar">{user.first_name?.charAt(0)}</div>
+            <div className="avatar" style={{ background: "#0d9488", color: "#fff" }}>
+              {user.first_name?.charAt(0)}
+            </div>
             <span>
               {user.first_name} {user.last_name}
+              {user.position_name ? ` (${user.position_name})` : ""}
             </span>
-            <button className="m-btn m-btn-ghost" onClick={logout} style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.3)' }}>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={logout}
+              style={{ color: "#fff", borderColor: "rgba(255,255,255,0.35)", background: "transparent" }}
+            >
               ออก
             </button>
           </div>
@@ -51,10 +62,10 @@ export default function AdminLayout({ title, subtitle, children }) {
       </nav>
       <div className="admin-body">
         <aside className="admin-sidebar">
-          <ul>
+          <ul className="sidebar-menu">
             {MENU.map((m) => (
               <li key={m.path}>
-                <Link to={m.path} className={isActive(m) ? 'active' : ''}>
+                <Link to={m.path} className={isActive(m) ? "active" : ""}>
                   {m.label}
                 </Link>
               </li>
@@ -63,7 +74,7 @@ export default function AdminLayout({ title, subtitle, children }) {
         </aside>
         <main className="admin-main">
           {(title || subtitle) && (
-            <div className="admin-page-header">
+            <div className="page-header" style={{ paddingTop: 0 }}>
               {title && <h1>{title}</h1>}
               {subtitle && <p>{subtitle}</p>}
             </div>

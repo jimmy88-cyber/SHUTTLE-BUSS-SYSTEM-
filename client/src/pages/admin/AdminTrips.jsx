@@ -76,7 +76,7 @@ export default function AdminTrips() {
             <option value="">-- เส้นทาง --</option>
             {routes.map((r) => (
               <option key={r.route_id} value={r.route_id}>
-                {r.name}
+                {r.route_name}
               </option>
             ))}
           </select>

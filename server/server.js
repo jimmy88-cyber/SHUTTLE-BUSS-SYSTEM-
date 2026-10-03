@@ -279,7 +279,7 @@ app.get("/api/vehicles", async (_req, res) => {
     await withDb(async (conn) => {
       const rows = await all(
         conn,
-        `SELECT Vehicle.vehicle_id, Vehicle.plate_number, Vehicle.vehicle_type_id,
+        `SELECT Vehicle.vehicle_id, Vehicle.plate_number, Vehicle.vehicle_type_id, Vehicle.status,
                 VehicleType.name type_name, VehicleType.capacity
          FROM Vehicle, VehicleType
          WHERE Vehicle.vehicle_type_id = VehicleType.vehicle_type_id
@@ -289,6 +289,7 @@ app.get("/api/vehicles", async (_req, res) => {
         rows.map((r) => ({
           vehicle_id: r.VEHICLE_ID,
           plate_number: r.PLATE_NUMBER,
+          status: r.STATUS || "available",
           vehicle_type: {
             vehicle_type_id: r.VEHICLE_TYPE_ID,
             type_name: r.TYPE_NAME,
@@ -304,16 +305,22 @@ app.get("/api/vehicles", async (_req, res) => {
 
 app.post("/api/vehicles", async (req, res) => {
   try {
-    const { vehicle_id, plate_number, vehicle_type_id } = req.body;
+    const { vehicle_id, plate_number, vehicle_type_id, status } = req.body;
     if (!vehicle_id || !plate_number || !vehicle_type_id) {
       return res.status(400).json({ message: "ข้อมูลไม่ครบ" });
     }
     await withDb(async (conn) => {
-      await q(conn, `INSERT INTO Vehicle VALUES (:vehicle_id,:plate_number,:vehicle_type_id)`, {
-        vehicle_id,
-        plate_number,
-        vehicle_type_id,
-      });
+      await q(
+        conn,
+        `INSERT INTO Vehicle (vehicle_id, plate_number, vehicle_type_id, status)
+         VALUES (:vehicle_id, :plate_number, :vehicle_type_id, :status)`,
+        {
+          vehicle_id,
+          plate_number,
+          vehicle_type_id,
+          status: status || "available",
+        }
+      );
       res.status(201).json({ message: "เพิ่มรถสำเร็จ", vehicle_id });
     });
   } catch (e) {
@@ -332,6 +339,33 @@ app.delete("/api/vehicles/:id", async (req, res) => {
   }
 });
 
+
+app.put("/api/vehicles/:id", async (req, res) => {
+  try {
+    const { plate_number, vehicle_type_id, status } = req.body;
+    if (!plate_number || !vehicle_type_id) return res.status(400).json({ message: "ข้อมูลไม่ครบ" });
+    await withDb(async (conn) => {
+      await q(
+        conn,
+        `UPDATE Vehicle
+            SET plate_number = :plate_number,
+                vehicle_type_id = :vehicle_type_id,
+                status = :status
+          WHERE vehicle_id = :id`,
+        {
+          plate_number,
+          vehicle_type_id,
+          status: status || "available",
+          id: req.params.id,
+        }
+      );
+      res.json({ message: "แก้ไขรถสำเร็จ" });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
 app.get("/api/vehicle-types", async (_req, res) => {
   try {
     await withDb(async (conn) => {
@@ -342,6 +376,133 @@ app.get("/api/vehicle-types", async (_req, res) => {
     err(res, e);
   }
 });
+
+app.post("/api/vehicle-types", async (req, res) => {
+  try {
+    const { vehicle_type_id, name, capacity } = req.body;
+    if (!vehicle_type_id || !name || capacity == null) return res.status(400).json({ message: "ข้อมูลไม่ครบ" });
+    await withDb(async (conn) => {
+      await q(
+        conn,
+        `INSERT INTO VehicleType (vehicle_type_id, name, capacity) VALUES (:vehicle_type_id, :name, :capacity)`,
+        { vehicle_type_id, name, capacity: Number(capacity) }
+      );
+      res.status(201).json({ message: "เพิ่มประเภทรถสำเร็จ", vehicle_type_id });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+app.put("/api/vehicle-types/:id", async (req, res) => {
+  try {
+    const { name, capacity } = req.body;
+    if (!name || capacity == null) return res.status(400).json({ message: "ข้อมูลไม่ครบ" });
+    await withDb(async (conn) => {
+      await q(
+        conn,
+        `UPDATE VehicleType SET name = :name, capacity = :capacity WHERE vehicle_type_id = :id`,
+        { name, capacity: Number(capacity), id: req.params.id }
+      );
+      res.json({ message: "แก้ไขประเภทรถสำเร็จ" });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+app.delete("/api/vehicle-types/:id", async (req, res) => {
+  try {
+    await withDb(async (conn) => {
+      await q(conn, `DELETE FROM VehicleType WHERE vehicle_type_id = :id`, { id: req.params.id });
+      res.json({ message: "ลบประเภทรถสำเร็จ" });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+// เส้นทาง CRUD + จุดจอด
+app.post("/api/routes", async (req, res) => {
+  try {
+    const { route_id, route_name, total_minutes } = req.body;
+    if (!route_id || !route_name) return res.status(400).json({ message: "ข้อมูลไม่ครบ" });
+    await withDb(async (conn) => {
+      await q(
+        conn,
+        `INSERT INTO Route (route_id, name, total_minutes) VALUES (:route_id, :route_name, :total_minutes)`,
+        { route_id, route_name, total_minutes: Number(total_minutes) || 0 }
+      );
+      res.status(201).json({ message: "เพิ่มเส้นทางสำเร็จ", route_id });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+app.put("/api/routes/:id", async (req, res) => {
+  try {
+    const { route_name, total_minutes } = req.body;
+    if (!route_name) return res.status(400).json({ message: "กรุณาระบุชื่อเส้นทาง" });
+    await withDb(async (conn) => {
+      await q(
+        conn,
+        `UPDATE Route SET name = :route_name, total_minutes = :total_minutes WHERE route_id = :id`,
+        { route_name, total_minutes: Number(total_minutes) || 0, id: req.params.id }
+      );
+      res.json({ message: "แก้ไขเส้นทางสำเร็จ" });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+app.delete("/api/routes/:id", async (req, res) => {
+  try {
+    await withDb(async (conn) => {
+      await q(conn, `DELETE FROM RouteStop WHERE route_id = :id`, { id: req.params.id });
+      await q(conn, `DELETE FROM Route WHERE route_id = :id`, { id: req.params.id });
+      res.json({ message: "ลบเส้นทางสำเร็จ" });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+app.put("/api/routes/:id/stops", async (req, res) => {
+  try {
+    const stops = req.body.stops;
+    if (!Array.isArray(stops)) return res.status(400).json({ message: "รูปแบบ stops ไม่ถูกต้อง" });
+    await withDb(async (conn) => {
+      const routeId = req.params.id;
+      const route = await one(conn, `SELECT route_id FROM Route WHERE route_id = :id`, { id: routeId });
+      if (!route) return res.status(404).json({ message: "ไม่พบเส้นทาง" });
+      await q(conn, `DELETE FROM RouteStop WHERE route_id = :id`, { id: routeId });
+      let total = 0;
+      for (let i = 0; i < stops.length; i++) {
+        const s = stops[i];
+        const minutes = Number(s.minutes_from_prev) || 0;
+        total += minutes;
+        await q(
+          conn,
+          `INSERT INTO RouteStop (route_id, sequence_no, stop_id, minutes_from_prev)
+           VALUES (:route_id, :sequence_no, :stop_id, :minutes_from_prev)`,
+          {
+            route_id: routeId,
+            sequence_no: i + 1,
+            stop_id: Number(s.stop_id),
+            minutes_from_prev: minutes,
+          }
+        );
+      }
+      await q(conn, `UPDATE Route SET total_minutes = :total WHERE route_id = :id`, { total, id: routeId });
+      res.json({ message: "บันทึกจุดจอดสำเร็จ", total_minutes: total });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
 
 app.get("/api/positions", async (_req, res) => {
   try {
@@ -364,6 +525,180 @@ app.get("/api/departments", async (_req, res) => {
     err(res, e);
   }
 });
+
+app.post("/api/departments", async (req, res) => {
+  try {
+    const { department_id, name } = req.body;
+    if (!department_id || !name) return res.status(400).json({ message: "ข้อมูลไม่ครบ" });
+    await withDb(async (conn) => {
+      await q(conn, `INSERT INTO Department (department_id, name) VALUES (:department_id, :name)`, { department_id, name });
+      res.status(201).json({ message: "เพิ่มแผนกสำเร็จ" });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+app.put("/api/departments/:id", async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ message: "กรุณาระบุชื่อแผนก" });
+    await withDb(async (conn) => {
+      await q(conn, `UPDATE Department SET name = :name WHERE department_id = :id`, { name, id: req.params.id });
+      res.json({ message: "แก้ไขแผนกสำเร็จ" });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+app.delete("/api/departments/:id", async (req, res) => {
+  try {
+    await withDb(async (conn) => {
+      await q(conn, `DELETE FROM Department WHERE department_id = :id`, { id: req.params.id });
+      res.json({ message: "ลบแผนกสำเร็จ" });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+app.post("/api/positions", async (req, res) => {
+  try {
+    const { position_id, name, permission } = req.body;
+    if (!position_id || !name) return res.status(400).json({ message: "ข้อมูลไม่ครบ" });
+    await withDb(async (conn) => {
+      await q(
+        conn,
+        `INSERT INTO Position (position_id, name, permission) VALUES (:position_id, :name, :permission)`,
+        { position_id, name, permission: permission || "000000" }
+      );
+      res.status(201).json({ message: "เพิ่มตำแหน่งสำเร็จ" });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+app.put("/api/positions/:id", async (req, res) => {
+  try {
+    const { name, permission } = req.body;
+    if (!name) return res.status(400).json({ message: "กรุณาระบุชื่อตำแหน่ง" });
+    await withDb(async (conn) => {
+      await q(
+        conn,
+        `UPDATE Position SET name = :name, permission = :permission WHERE position_id = :id`,
+        { name, permission: permission || "000000", id: req.params.id }
+      );
+      res.json({ message: "แก้ไขตำแหน่งสำเร็จ" });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+app.delete("/api/positions/:id", async (req, res) => {
+  try {
+    await withDb(async (conn) => {
+      await q(conn, `DELETE FROM Position WHERE position_id = :id`, { id: req.params.id });
+      res.json({ message: "ลบตำแหน่งสำเร็จ" });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+app.post("/api/employees", async (req, res) => {
+  try {
+    const { username, password, first_name, last_name, department_id, position_id, email } = req.body;
+    if (!username || !first_name || !last_name || !position_id) {
+      return res.status(400).json({ message: "ข้อมูลไม่ครบ" });
+    }
+    await withDb(async (conn) => {
+      if (await one(conn, `SELECT user_id FROM AppUser WHERE username = :username`, { username })) {
+        return res.status(400).json({ message: "รหัสพนักงานนี้มีแล้ว" });
+      }
+      const next = await one(conn, `SELECT NVL(MAX(user_id), 0) + 1 id FROM AppUser`);
+      const hash = await bcrypt.hash(String(password || "1234"), 10);
+      await q(
+        conn,
+        `INSERT INTO AppUser (user_id, username, password, first_name, last_name, email, user_type, department_id, position_id)
+         VALUES (:id, :username, :password, :first_name, :last_name, :email, 'employee', :department_id, :position_id)`,
+        {
+          id: next.ID,
+          username,
+          password: hash,
+          first_name,
+          last_name,
+          email: email || null,
+          department_id: department_id || null,
+          position_id,
+        }
+      );
+      res.status(201).json({ message: "เพิ่มพนักงานสำเร็จ", user_id: next.ID });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+app.put("/api/employees/:id", async (req, res) => {
+  try {
+    const { first_name, last_name, department_id, position_id, password } = req.body;
+    if (!first_name || !last_name || !position_id) {
+      return res.status(400).json({ message: "ข้อมูลไม่ครบ" });
+    }
+    await withDb(async (conn) => {
+      if (password) {
+        const hash = await bcrypt.hash(String(password), 10);
+        await q(
+          conn,
+          `UPDATE AppUser
+              SET first_name = :first_name, last_name = :last_name,
+                  department_id = :department_id, position_id = :position_id,
+                  password = :password
+            WHERE user_id = :id`,
+          {
+            first_name, last_name,
+            department_id: department_id || null,
+            position_id,
+            password: hash,
+            id: Number(req.params.id),
+          }
+        );
+      } else {
+        await q(
+          conn,
+          `UPDATE AppUser
+              SET first_name = :first_name, last_name = :last_name,
+                  department_id = :department_id, position_id = :position_id
+            WHERE user_id = :id`,
+          {
+            first_name, last_name,
+            department_id: department_id || null,
+            position_id,
+            id: Number(req.params.id),
+          }
+        );
+      }
+      res.json({ message: "แก้ไขพนักงานสำเร็จ" });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+app.delete("/api/employees/:id", async (req, res) => {
+  try {
+    await withDb(async (conn) => {
+      await q(conn, `DELETE FROM AppUser WHERE user_id = :id`, { id: Number(req.params.id) });
+      res.json({ message: "ลบพนักงานสำเร็จ" });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
 
 // ---------- SCHEDULES ----------
 app.get("/api/schedules", async (req, res) => {

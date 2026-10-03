@@ -20,6 +20,12 @@ export const api = {
   register: (body) => req("/register", { method: "POST", body: JSON.stringify(body) }),
 
   getRoutes: () => req("/routes"),
+  createRoute: (body) => req("/routes", { method: "POST", body: JSON.stringify(body) }),
+  updateRoute: (id, body) => req("/routes/" + id, { method: "PUT", body: JSON.stringify(body) }),
+  deleteRoute: (id) => req("/routes/" + id, { method: "DELETE" }),
+  updateRouteStops: (id, stops) =>
+    req("/routes/" + id + "/stops", { method: "PUT", body: JSON.stringify({ stops }) }),
+
   getStops: () => req("/stops"),
   getSchedules: (p = {}) => req("/schedules" + qs(p)),
   getSchedule: (id) => req("/schedules/" + id),
@@ -32,14 +38,30 @@ export const api = {
   cancelBooking: (id) => req(`/bookings/${id}/cancel`, { method: "PATCH" }),
 
   getVehicles: () => req("/vehicles"),
-  getVehicleTypes: () => req("/vehicle-types"),
   createVehicle: (body) => req("/vehicles", { method: "POST", body: JSON.stringify(body) }),
+  updateVehicle: (id, body) => req("/vehicles/" + id, { method: "PUT", body: JSON.stringify(body) }),
   deleteVehicle: (id) => req("/vehicles/" + id, { method: "DELETE" }),
+
+  getVehicleTypes: () => req("/vehicle-types"),
+  createVehicleType: (body) => req("/vehicle-types", { method: "POST", body: JSON.stringify(body) }),
+  updateVehicleType: (id, body) => req("/vehicle-types/" + id, { method: "PUT", body: JSON.stringify(body) }),
+  deleteVehicleType: (id) => req("/vehicle-types/" + id, { method: "DELETE" }),
 
   getUsers: (p = {}) => req("/users" + qs(p)),
   getPositions: () => req("/positions"),
+  createPosition: (body) => req("/positions", { method: "POST", body: JSON.stringify(body) }),
+  updatePosition: (id, body) => req("/positions/" + id, { method: "PUT", body: JSON.stringify(body) }),
+  deletePosition: (id) => req("/positions/" + id, { method: "DELETE" }),
   getDepartments: () => req("/departments"),
+  createDepartment: (body) => req("/departments", { method: "POST", body: JSON.stringify(body) }),
+  updateDepartment: (id, body) => req("/departments/" + id, { method: "PUT", body: JSON.stringify(body) }),
+  deleteDepartment: (id) => req("/departments/" + id, { method: "DELETE" }),
+  createEmployee: (body) => req("/employees", { method: "POST", body: JSON.stringify(body) }),
+  updateEmployee: (id, body) => req("/employees/" + id, { method: "PUT", body: JSON.stringify(body) }),
+  deleteEmployee: (id) => req("/employees/" + id, { method: "DELETE" }),
+
   getStats: () => req("/stats"),
+  getReports: () => req("/reports"),
   getBoarding: () => req("/boarding"),
   createBoarding: (body) => req("/boarding", { method: "POST", body: JSON.stringify(body) }),
 };
