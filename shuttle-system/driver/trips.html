@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>คนขับ · รอบรถ</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/mobile.css">
+  <style>
+    .scan-frame {
+      position: relative;
+      width: 100%;
+      max-width: 280px;
+      aspect-ratio: 1;
+      margin: 0 auto 16px;
+      border-radius: 20px;
+      overflow: hidden;
+      background: #0f172a;
+      border: 3px solid #0d9488;
+      box-shadow: 0 0 0 4px rgba(13,148,136,0.2);
+    }
+    .scan-frame video, .scan-frame .placeholder {
+      width: 100%; height: 100%; object-fit: cover;
+      display: block;
+    }
+    .scan-frame .placeholder {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: rgba(255,255,255,0.7); font-size: 0.85rem; gap: 8px;
+      background: linear-gradient(160deg, #1e293b, #0f172a);
+    }
+    .scan-frame .placeholder .cam-ico { font-size: 3rem; opacity: 0.6; }
+    .scan-corner {
+      position: absolute; width: 28px; height: 28px; border-color: #2dd4bf; border-style: solid;
+    }
+    .scan-corner.tl { top: 12px; left: 12px; border-width: 3px 0 0 3px; border-radius: 6px 0 0 0; }
+    .scan-corner.tr { top: 12px; right: 12px; border-width: 3px 3px 0 0; border-radius: 0 6px 0 0; }
+    .scan-corner.bl { bottom: 12px; left: 12px; border-width: 0 0 3px 3px; border-radius: 0 0 0 6px; }
+    .scan-corner.br { bottom: 12px; right: 12px; border-width: 0 3px 3px 0; border-radius: 0 0 6px 0; }
+    .scan-line {
+      position: absolute; left: 16px; right: 16px; height: 2px;
+      background: linear-gradient(90deg, transparent, #2dd4bf, transparent);
+      animation: scanMove 2s ease-in-out infinite;
+    }
+    @keyframes scanMove {
+      0%, 100% { top: 20%; opacity: 0.4; }
+      50% { top: 75%; opacity: 1; }
+    }
+    .result-ok { background: #f0fdf4; border: 1px solid #86efac; border-radius: 14px; padding: 14px; margin-top: 12px; }
+    .result-err { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 14px; padding: 14px; margin-top: 12px; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .m-nav a { cursor: pointer; }
+
+    .pax-item {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+      padding: 12px 10px; border-bottom: 1px solid #f1f5f9;
+      font-size: 0.88rem;
+    }
+    .pax-item:last-child { border-bottom: none; }
+    .pax-item .pax-info { flex: 1; min-width: 0; }
+    .pax-item .pax-actions { display: flex; gap: 6px; flex-shrink: 0; align-items: center; }
+    .btn-xs {
+      padding: 6px 12px; font-size: 0.75rem; border-radius: 8px;
+      border: none; font-weight: 600; font-family: inherit; cursor: pointer;
+    }
+    .btn-xs-cancel { background: #fee2e2; color: #b91c1c; }
+    .btn-xs:active { opacity: 0.85; transform: scale(0.97); }
+    .trip-card-click {
+      cursor: pointer;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+    .trip-card-click:active { background: #f0fdfa; }
+    /* Group by person */
+    .pax-group {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .pax-group-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    .pax-group-header .pax-total {
+      font-size: 0.75rem; font-weight: 600; color: #64748b;
+      background: #e2e8f0; padding: 3px 8px; border-radius: 20px;
+    }
+    .pax-group .pax-item {
+      padding: 10px 14px;
+      background: #fff;
+    }
+    .pax-group .pax-item:last-child { border-bottom: none; }
+    .pax-sub {
+      font-size: 0.8rem; color: #64748b; margin-top: 2px; line-height: 1.4;
+    }
+  </style>
+</head>
+<body class="m-body">
+  <div class="m-status"><span id="clk">09:41</span><span id="st-label">Driver</span></div>
+
+  <!-- ================= หน้า: รอบรถ ================= -->
+  <section class="view" id="view-trips">
+    <header class="m-header rounded">
+      <div class="row">
+        <div>
+          <h1 id="dn">คนขับ</h1>
+          <p id="di">ตารางงาน</p>
+        </div>
+        <button class="m-btn m-btn-ghost" onclick="logout()">ออก</button>
+      </div>
+    </header>
+
+    <div class="m-content">
+      <div class="m-stat-row">
+        <div class="m-stat"><div class="n" id="st">0</div><div class="l">รอบของฉัน</div></div>
+        <div class="m-stat"><div class="n" id="sp">0</div><div class="l">ผู้โดยสารรอบถัดไป</div></div>
+      </div>
+      <div id="trips"></div>
+    </div>
+  </section>
+
+  <!-- ================= หน้า: รายละเอียดรอบ ================= -->
+  <section class="view" id="view-detail">
+    <header class="m-header rounded">
+      <div class="row">
+        <div>
+          <h1 id="detail-title">รายละเอียดรอบ</h1>
+          <p id="detail-sub">ผู้โดยสาร</p>
+        </div>
+        <button class="m-btn m-btn-ghost" onclick="showView('trips')">← กลับ</button>
+      </div>
+    </header>
+    <div class="m-content">
+      <div class="m-card" id="detail-info"></div>
+      <div class="m-card">
+        <div class="m-card-title">รายชื่อผู้โดยสาร</div>
+        <div id="detail-pax"></div>
+      </div>
+      <div id="detail-actions"></div>
+    </div>
+  </section>
+
+  <!-- ================= หน้า: สแกน QR ================= -->
+  <section class="view" id="view-scan">
+    <header class="m-header rounded">
+      <div class="row">
+        <div>
+          <h1>📷 สแกน QR ขึ้นรถ</h1>
+          <p>สแกนจากผู้โดยสาร หรือกรอกรหัสจอง</p>
+        </div>
+        <button class="m-btn m-btn-ghost" onclick="backFromScan()">← กลับ</button>
+      </div>
+    </header>
+
+    <div class="m-content">
+      <div class="m-card" id="trip-banner" style="display:none;border-left:4px solid #0d9488;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <div>
+            <div style="font-size:0.75rem;color:#64748b;">กำลังเดินทาง</div>
+            <strong id="tb-title"></strong>
+            <div style="font-size:0.78rem;color:#64748b;" id="tb-sub"></div>
+          </div>
+          <span class="m-badge m-badge-progress">in_progress</span>
+        </div>
+        <div style="font-size:0.85rem;margin-top:8px;" id="tb-count"></div>
+      </div>
+
+      <div class="m-card" style="text-align:center;">
+        <div class="scan-frame" id="scan-frame">
+          <div class="placeholder" id="cam-placeholder">
+            <div class="cam-ico">📷</div>
+            <div>กล้องสแกน QR</div>
+            <div style="font-size:0.75rem;opacity:0.6;">กดปุ่มด้านล่างเพื่อเปิดกล้อง</div>
+          </div>
+          <video id="cam-video" playsinline muted style="display:none;"></video>
+          <div class="scan-corner tl"></div>
+          <div class="scan-corner tr"></div>
+          <div class="scan-corner bl"></div>
+          <div class="scan-corner br"></div>
+          <div class="scan-line" id="scan-line" style="display:none;"></div>
+        </div>
+
+        <button class="m-btn m-btn-primary" id="btn-cam" onclick="toggleCam(false)">เปิดกล้องสแกน</button>
+        <p style="font-size:0.78rem;color:#94a3b8;margin:10px 0 0;">หรือกรอกรหัสจอง / QR ด้วยตนเอง</p>
+      </div>
+
+      <div class="m-card">
+        <label class="m-label">รหัสจอง หรือ QR Code</label>
+        <input class="m-input" id="scan-input" placeholder="เช่น 01 หรือ QR-01-001" inputmode="text" autocomplete="off">
+        <button class="m-btn m-btn-success" onclick="doCheckIn()">ยืนยันเช็คอิน</button>
+        <div id="result" style="display:none;"></div>
+      </div>
+
+      <div class="m-card">
+        <div class="m-card-title">เช็คอินล่าสุด</div>
+        <div id="recent"></div>
+      </div>
+    </div>
+  </section>
+
+  <nav class="m-nav">
+    <a id="nav-trips" onclick="showView('trips')"><span class="ico">🚌</span>รอบรถ</a>
+  </nav>
+
+  <script src="../js/data.js"></script>
+  <script>
+    const session = window.getSession();
+    if (!session || session.type !== 'staff') location.href = '../index.html';
+
+    // ---------- โหลด / บันทึกข้อมูล ----------
+    try { const b = JSON.parse(localStorage.getItem('shuttle_bookings')); if (b) window.BOOKINGS = b; } catch {}
+    try { const t = JSON.parse(localStorage.getItem('shuttle_trips')); if (t) window.TRIPS = t; } catch {}
+    function saveBookings() { try { localStorage.setItem('shuttle_bookings', JSON.stringify(window.BOOKINGS)); } catch {} }
+    function saveTrips()    { try { localStorage.setItem('shuttle_trips', JSON.stringify(window.TRIPS)); } catch {} }
+
+    document.getElementById('dn').textContent = session.name;
+    document.getElementById('di').textContent = session.empCode + ' · ' + session.posName;
+    document.getElementById('clk').textContent = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+    function logout() { stopCam(); window.clearSession(); location.href = '../index.html'; }
+
+    // ---------- สลับหน้า ----------
+    let activeTrip = null;   // รอบที่กด "เริ่มเดินทาง"
+    let detailTripCode = null; // รอบที่กำลังดูรายละเอียด
+
+    function showView(name) {
+      document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
+      document.getElementById('nav-trips').classList.add('active');
+      const labels = { trips: 'Driver', detail: 'รายละเอียด', scan: 'สแกน QR' };
+      const titles = { trips: 'รอบรถ', detail: 'รายละเอียดรอบ', scan: 'สแกน QR' };
+      document.getElementById('st-label').textContent = labels[name] || 'Driver';
+      document.title = 'คนขับ · ' + (titles[name] || 'รอบรถ');
+      history.replaceState(null, '', name === 'scan' ? '#scan' : name === 'detail' ? '#detail' : '#trips');
+      window.scrollTo(0, 0);
+
+      if (name === 'scan') {
+        renderTripBanner();
+        renderRecent();
+      } else if (name === 'detail') {
+        stopCam();
+        renderDetail();
+      } else {
+        stopCam();
+        renderTrips();
+      }
+    }
+
+    // ================= รอบรถ =================
+    function badge(st) {
+      const m = { booked:'m-badge-booked', checked_in:'m-badge-checked', cancelled:'m-badge-cancel', no_show:'m-badge-cancel', planned:'m-badge-planned', in_progress:'m-badge-progress', completed:'m-badge-checked' };
+      const label = { booked:'ยังไม่มา', checked_in:'มาแล้ว', cancelled:'ยกเลิก', no_show:'ไม่มา', planned:'planned', in_progress:'กำลังเดินทาง', completed:'ปิดรอบ' };
+      return `<span class="m-badge ${m[st] || ''}">${label[st] || st}</span>`;
+    }
+
+    function renderTrips() {
+      const mine = window.TRIPS.filter(t => t.emp === session.empCode)
+        .sort((a, b) => a.datetime.localeCompare(b.datetime));
+      const open = mine.filter(t => t.status !== 'completed');
+      const closed = mine.filter(t => t.status === 'completed');
+      const my = [...open, ...closed];
+
+      document.getElementById('st').textContent = open.length;
+      const next = open[0];
+      document.getElementById('sp').textContent = next ? window.BOOKINGS
+        .filter(b => b.trip === next.code && (b.status === 'booked' || b.status === 'checked_in'))
+        .reduce((s, b) => s + b.seats, 0) : 0;
+
+      document.getElementById('trips').innerHTML = my.map(t => {
+        const pax = window.BOOKINGS.filter(b => b.trip === t.code && b.status !== 'cancelled');
+        const arrived = pax.filter(b => b.status === 'checked_in').reduce((s, b) => s + b.seats, 0);
+        const total = pax.reduce((s, b) => s + b.seats, 0);
+        const done = t.status === 'completed';
+
+        return `<div class="m-card trip-card-click"${done ? ' style="opacity:0.65;"' : ''} onclick="openDetail('${t.code}')">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div>
+              <strong>${t.code}</strong> · ${t.datetime.slice(11,16)} น.
+              <div style="font-size:0.78rem;color:#64748b;">${window.getRouteName(t.route)} · ${window.getVehicle(t.vehicle)}</div>
+              <div style="font-size:0.82rem;margin-top:6px;color:#334155;">
+                👥 ผู้โดยสาร ${arrived}/${total} คน
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+              ${badge(t.status)}
+              <span style="font-size:0.75rem;color:#94a3b8;">แตะเพื่อดู →</span>
+            </div>
+          </div>
+        </div>`;
+      }).join('') || '<div class="m-empty"><div class="big">🚌</div>ไม่มีรอบมอบหมาย</div>';
+    }
+
+    function openDetail(code) {
+      detailTripCode = code;
+      showView('detail');
+    }
+
+    function renderDetail() {
+      const t = window.TRIPS.find(x => x.code === detailTripCode);
+      if (!t) { showView('trips'); return; }
+
+      const pax = window.BOOKINGS.filter(b => b.trip === t.code); // รวมที่ยกเลิกด้วยเพื่อให้เห็น
+      const activePax = pax.filter(b => b.status !== 'cancelled');
+      const arrived = activePax.filter(b => b.status === 'checked_in').reduce((s, b) => s + b.seats, 0);
+      const total = activePax.reduce((s, b) => s + b.seats, 0);
+      const done = t.status === 'completed';
+
+      document.getElementById('detail-title').textContent = 'รอบ ' + t.code;
+      document.getElementById('detail-sub').textContent = t.datetime.slice(0, 16).replace('T', ' ') + ' น.';
+
+      document.getElementById('detail-info').innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div>
+            <div style="font-size:0.75rem;color:#64748b;">เส้นทาง</div>
+            <strong>${window.getRouteName(t.route)}</strong>
+          </div>
+          ${badge(t.status)}
+        </div>
+        <div style="font-size:0.85rem;color:#475569;line-height:1.6;">
+          🚐 ${window.getVehicle(t.vehicle)}<br>
+          👥 ขึ้นรถแล้ว <b>${arrived}</b> / ${total} คน
+        </div>
+      `;
+
+      const list = document.getElementById('detail-pax');
+      if (pax.length === 0) {
+        list.innerHTML = '<div style="color:#94a3b8;font-size:0.85rem;padding:12px 0;text-align:center;">ไม่มีผู้จอง</div>';
+      } else {
+        // จัดกลุ่มตามผู้ใช้ (คนเดียวกันจองหลายที่ → group ไว้ด้วยกัน)
+        const groups = {};
+        pax.forEach(b => {
+          if (!groups[b.user]) groups[b.user] = [];
+          groups[b.user].push(b);
+        });
+
+        list.innerHTML = Object.keys(groups).map(userCode => {
+          const bookings = groups[userCode];
+          const u = window.USERS.find(x => x.code === userCode);
+          const name = u ? u.first + ' ' + u.last : userCode;
+          const totalSeats = bookings.reduce((s, b) => s + b.seats, 0);
+          const arrivedSeats = bookings.filter(b => b.status === 'checked_in').reduce((s, b) => s + b.seats, 0);
+
+          // สถานะรวมของกลุ่ม
+          const allChecked = bookings.every(b => b.status === 'checked_in' || b.status === 'cancelled');
+          const allCancelled = bookings.every(b => b.status === 'cancelled');
+          let groupBadge = '';
+          if (allCancelled) groupBadge = badge('cancelled');
+          else if (allChecked) groupBadge = badge('checked_in');
+          else if (arrivedSeats > 0) groupBadge = `<span class="m-badge m-badge-progress">${arrivedSeats}/${totalSeats} มาแล้ว</span>`;
+          else groupBadge = badge('booked');
+
+          const rows = bookings.map(b => {
+            return `<div class="pax-item">
+              <div class="pax-info">
+                <span style="font-weight:600;">#${b.code}</span>
+                <div class="pax-sub">${window.getStopName(b.pickup)} → ${window.getStopName(b.dropoff)} · ${b.seats} ที่</div>
+              </div>
+              <div class="pax-actions">
+                ${badge(b.status)}
+              </div>
+            </div>`;
+          }).join('');
+
+          return `<div class="pax-group">
+            <div class="pax-group-header">
+              <div>
+                ${name}
+                <span class="pax-total">${totalSeats} ที่</span>
+              </div>
+              ${groupBadge}
+            </div>
+            ${rows}
+          </div>`;
+        }).join('');
+      }
+
+      const actions = document.getElementById('detail-actions');
+      if (done) {
+        actions.innerHTML = `
+          <button class="m-btn m-btn-outline" onclick="showView('trips')">← กลับหน้ารอบรถ</button>
+        `;
+      } else {
+        actions.innerHTML = `
+          <button class="m-btn m-btn-primary" onclick="startTrip('${t.code}')">
+            📷 ${t.status === 'in_progress' ? 'สแกนต่อ' : 'เริ่มเดินทาง / สแกนขึ้นรถ'}
+          </button>
+          <button class="m-btn m-btn-outline" style="margin-top:8px;" onclick="closeTrip('${t.code}')">ปิดรอบ</button>
+          <button class="m-btn m-btn-outline" style="margin-top:8px;color:#b91c1c;border-color:#fca5a5;" onclick="cancelTrip('${t.code}')">ยกเลิกรอบ</button>
+          <button class="m-btn m-btn-outline" style="margin-top:8px;" onclick="showView('trips')">← กลับหน้ารอบรถ</button>
+        `;
+      }
+    }
+
+    function backFromScan() {
+      stopCam();
+      if (detailTripCode) showView('detail');
+      else showView('trips');
+    }
+
+    function startTrip(c) {
+      const t = window.TRIPS.find(x => x.code === c);
+      if (!t) return;
+      t.status = 'in_progress';
+      saveTrips();
+      activeTrip = t;
+      detailTripCode = c;
+      showView('scan');
+      if (navigator.mediaDevices?.getUserMedia) toggleCam(true);
+    }
+
+    function closeTrip(c) {
+      const pax = window.BOOKINGS.filter(b => b.trip === c);
+      const ns = pax.filter(b => b.status === 'booked');
+      const bd = pax.filter(b => b.status === 'checked_in');
+      if (!confirm('ปิดรอบ ' + c + '\nขึ้นรถ: ' + bd.length + '\nNo-show: ' + ns.length + '\n\nยืนยันปิดรอบ?')) return;
+      const t = window.TRIPS.find(x => x.code === c);
+      if (t) t.status = 'completed';
+      ns.forEach(b => b.status = 'no_show');
+      if (activeTrip && activeTrip.code === c) activeTrip = null;
+      saveTrips(); saveBookings();
+      if (detailTripCode === c) renderDetail();
+      else showView('trips');
+    }
+
+    function cancelTrip(c) {
+      const pax = window.BOOKINGS.filter(b => b.trip === c && b.status === 'booked');
+      const msg = pax.length
+        ? 'ยกเลิกรอบ ' + c + '\nจะยกเลิกการจองที่ยังไม่ขึ้นรถ ' + pax.length + ' รายการ\n\nยืนยันยกเลิกรอบ?'
+        : 'ยกเลิกรอบ ' + c + '\n\nยืนยันยกเลิกรอบ?';
+      if (!confirm(msg)) return;
+      const t = window.TRIPS.find(x => x.code === c);
+      if (t) t.status = 'completed';
+      pax.forEach(b => b.status = 'cancelled');
+      if (activeTrip && activeTrip.code === c) activeTrip = null;
+      saveTrips(); saveBookings();
+      if (detailTripCode === c) renderDetail();
+      else showView('trips');
+    }
+
+    // ================= สแกน QR =================
+    let stream = null;
+
+    function stopCam() {
+      if (!stream) return;
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+      document.getElementById('cam-video').style.display = 'none';
+      document.getElementById('cam-placeholder').style.display = 'flex';
+      document.getElementById('scan-line').style.display = 'none';
+      document.getElementById('btn-cam').textContent = 'เปิดกล้องสแกน';
+    }
+
+    async function toggleCam(silent) {
+      if (stream) { stopCam(); return; }
+      const video = document.getElementById('cam-video');
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+        video.srcObject = stream;
+        await video.play();
+        video.style.display = 'block';
+        document.getElementById('cam-placeholder').style.display = 'none';
+        document.getElementById('scan-line').style.display = 'block';
+        document.getElementById('btn-cam').textContent = 'ปิดกล้อง';
+      } catch (err) {
+        stream = null;
+        if (silent) return;   // เปิดอัตโนมัติไม่สำเร็จ → ให้คนขับกดปุ่มเอง
+        alert('ไม่สามารถเปิดกล้องได้\nกรุณาอนุญาตการเข้าถึงกล้อง หรือกรอกรหัสด้านล่าง\n\n' + (err.message || ''));
+      }
+    }
+
+    function renderTripBanner() {
+      const banner = document.getElementById('trip-banner');
+      if (!activeTrip) { banner.style.display = 'none'; return; }
+      const pax = window.BOOKINGS.filter(b => b.trip === activeTrip.code && b.status !== 'cancelled');
+      const done = pax.filter(b => b.status === 'checked_in').reduce((s, b) => s + b.seats, 0);
+      const all = pax.reduce((s, b) => s + b.seats, 0);
+      banner.style.display = 'block';
+      document.getElementById('tb-title').textContent = 'รอบ ' + activeTrip.code + ' · ' + activeTrip.datetime.slice(11, 16) + ' น.';
+      document.getElementById('tb-sub').textContent = window.getRouteName(activeTrip.route) + ' · ' + window.getVehicle(activeTrip.vehicle);
+      document.getElementById('tb-count').innerHTML = 'ขึ้นรถแล้ว <b>' + done + '</b> / ' + all + ' ที่';
+    }
+
+    function showResult(ok, html) {
+      const box = document.getElementById('result');
+      box.style.display = 'block';
+      box.className = ok ? 'result-ok' : 'result-err';
+      box.innerHTML = html;
+    }
+
+    function doCheckIn(codeFromScan) {
+      const input = (codeFromScan || document.getElementById('scan-input').value).trim();
+      if (!input) return showResult(false, '<strong>กรุณากรอกรหัสจองหรือ QR</strong>');
+
+      // หา booking จากรหัสจอง หรือ QR (รองรับ QR ร่วมต่อคนต่อรอบ)
+      let seed = window.BOOKINGS.find(x => x.code === input || x.qr === input);
+      if (!seed) return showResult(false, '<strong>❌ ไม่พบการจอง</strong><br><span style="font-size:0.85rem;">รหัส: ' + input + '</span>');
+
+      if (activeTrip && seed.trip !== activeTrip.code)
+        return showResult(false, '<strong>❌ ผิดรอบ</strong><br><span style="font-size:0.85rem;">การจองนี้เป็นของรอบ ' + seed.trip + ' ไม่ใช่รอบ ' + activeTrip.code + '</span>');
+      const trip = window.TRIPS.find(t => t.code === seed.trip);
+      if (trip && trip.emp !== session.empCode)
+        return showResult(false, '<strong>❌ ผิดรอบ</strong><br><span style="font-size:0.85rem;">การจองนี้ไม่ใช่รอบที่คุณขับ</span>');
+
+      // เช็คอินครบทุกที่นั่งของคนนี้ในรอบเดียวกัน (สแกนครั้งเดียว)
+      const group = window.BOOKINGS.filter(x =>
+        x.user === seed.user &&
+        x.trip === seed.trip &&
+        x.status === 'booked'
+      );
+      if (group.length === 0) {
+        return showResult(false, '<strong>❌ ไม่สามารถเช็คอินได้</strong><br><span style="font-size:0.85rem;">สถานะปัจจุบัน: ' + seed.status + ' (เช็คอินครบแล้วหรือยกเลิกแล้ว)</span>');
+      }
+
+      const totalSeats = group.reduce((s, b) => s + b.seats, 0);
+      const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      group.forEach(b => {
+        b.status = 'checked_in';
+        window.BOARDING.push({
+          code: String(window.BOARDING.length + 1).padStart(2, '0'),
+          booking: b.code, trip: b.trip, stop: b.pickup,
+          emp: session.empCode,
+          datetime: now
+        });
+      });
+      saveBookings();
+
+      const u = window.USERS.find(x => x.code === seed.user);
+      const codes = group.map(b => b.code).join(', ');
+      showResult(true, `
+        <strong>✅ เช็คอินสำเร็จ</strong><br>
+        <span style="font-size:0.9rem;">
+          ผู้โดยสาร: ${u ? u.first + ' ' + u.last : seed.user}<br>
+          รหัสจอง: <b>${codes}</b><br>
+          ที่นั่งรวม: <b>${totalSeats}</b> ที่ · จุดขึ้น: ${window.getStopName(seed.pickup)}
+        </span>`);
+      document.getElementById('scan-input').value = '';
+      renderRecent();
+      renderTripBanner();
+    }
+
+    function renderRecent() {
+      const recent = window.BOARDING.filter(x => x.emp === session.empCode).slice(-5).reverse();
+      document.getElementById('recent').innerHTML = recent.length
+        ? recent.map(x => {
+            const b = window.BOOKINGS.find(bk => bk.code === x.booking);
+            const u = b && window.USERS.find(us => us.code === b.user);
+            return `<div class="m-list-item">
+              <div><b>${x.booking}</b> ${u ? u.first : ''}<br>
+              <span style="font-size:0.75rem;color:#94a3b8;">${x.datetime}</span></div>
+              <span class="m-badge m-badge-checked">checked_in</span>
+            </div>`;
+          }).join('')
+        : '<div style="color:#94a3b8;font-size:0.85rem;padding:8px 0;text-align:center;">ยังไม่มีรายการ</div>';
+    }
+
+    document.getElementById('scan-input').addEventListener('keydown', e => { if (e.key === 'Enter') doCheckIn(); });
+    window.addEventListener('beforeunload', stopCam);
+
+    // ---------- เริ่มต้น ----------
+    activeTrip = window.TRIPS.find(t => t.emp === session.empCode && t.status === 'in_progress') || null;
+    const hash = location.hash;
+    if (hash === '#scan') showView('scan');
+    else showView('trips');
+  </script>
+</body>
+</html>

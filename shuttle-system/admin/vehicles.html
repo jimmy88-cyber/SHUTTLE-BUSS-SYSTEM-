@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>จัดการรถ | Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <nav class="navbar"><div class="container">
+    <div class="navbar-brand">🚌 <span>Shuttle</span> Admin</div>
+    <div class="user-info" id="user-display"></div>
+  </div></nav>
+  <div class="admin-layout">
+    <aside class="sidebar"><ul class="sidebar-menu" id="sidebar-menu"></ul></aside>
+    <main class="main-content">
+      <div class="page-header" style="padding-top:0;"><h1>จัดการรถและประเภทรถ</h1></div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          <h2 class="card-title">ประเภทรถ</h2>
+          <button class="btn btn-primary btn-sm" onclick="openType()">+ เพิ่มประเภท</button>
+        </div>
+        <table>
+          <thead><tr><th>รหัส</th><th>ชื่อ</th><th>ที่นั่ง</th><th>จัดการ</th></tr></thead>
+          <tbody id="type-tb"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">รถ</h2>
+          <button class="btn btn-primary btn-sm" onclick="openVeh()">+ เพิ่มรถ</button>
+        </div>
+        <table>
+          <thead><tr><th>รหัส</th><th>ทะเบียน</th><th>ประเภท</th><th>ที่นั่ง</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+          <tbody id="veh-tb"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal ประเภท -->
+  <div id="modal-type" class="modal-overlay" style="display:none;" onclick="closeM('modal-type')">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header"><h2 id="type-title">เพิ่มประเภทรถ</h2><button class="close-btn" onclick="closeM('modal-type')">×</button></div>
+      <form onsubmit="saveType(event)">
+        <input type="hidden" id="type-idx" value="-1">
+        <div class="form-group"><label class="form-label">รหัส *</label><input class="form-control" id="type-code" required maxlength="2" placeholder="03"></div>
+        <div class="form-group"><label class="form-label">ชื่อประเภท *</label><input class="form-control" id="type-name" required placeholder="รถมินิบัส"></div>
+        <div class="form-group"><label class="form-label">จำนวนที่นั่ง *</label><input type="number" class="form-control" id="type-seats" required min="1" value="15"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <button type="button" class="btn btn-outline" style="flex:1;" onclick="closeM('modal-type')">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" style="flex:2;">บันทึก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal รถ -->
+  <div id="modal-veh" class="modal-overlay" style="display:none;" onclick="closeM('modal-veh')">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header"><h2 id="veh-title">เพิ่มรถ</h2><button class="close-btn" onclick="closeM('modal-veh')">×</button></div>
+      <form onsubmit="saveVeh(event)">
+        <input type="hidden" id="veh-idx" value="-1">
+        <div class="form-group"><label class="form-label">รหัส *</label><input class="form-control" id="veh-code" required placeholder="04"></div>
+        <div class="form-group"><label class="form-label">ทะเบียนรถ *</label><input class="form-control" id="veh-plate" required placeholder="กข 1234"></div>
+        <div class="form-group"><label class="form-label">ประเภท *</label><select class="form-control" id="veh-type" required></select></div>
+        <div class="form-group"><label class="form-label">สถานะ *</label>
+          <select class="form-control" id="veh-status" required>
+            <option value="active">ใช้งานได้</option>
+            <option value="inactive">ไม่ใช้งาน</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <button type="button" class="btn btn-outline" style="flex:1;" onclick="closeM('modal-veh')">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" style="flex:2;">บันทึก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../js/data.js"></script>
+  <script src="../js/admin-common.js"></script>
+  <script>
+    window.initAdminPage('vehicles');
+    window.checkPageRight(1);
+
+    function closeM(id) { document.getElementById(id).style.display = 'none'; }
+
+    function vehStatusBadge(v) {
+      // กำลังใช้งาน = มีรอบ status in_progress ใช้รถคันนี้
+      const onTrip = (window.TRIPS || []).some(t => t.vehicle === v.code && t.status === 'in_progress');
+      if (v.status === 'inactive') {
+        return '<span class="badge badge-inactive">ไม่ใช้งาน</span>';
+      }
+      if (onTrip) {
+        return '<span class="badge badge-in_use">กำลังใช้งาน</span>';
+      }
+      return '<span class="badge badge-active">ว่าง / พร้อมใช้</span>';
+    }
+
+    function render() {
+      // โหลด trips ล่าสุด (คนขับอาจอัปเดตสถานะรอบ)
+      try { const t = JSON.parse(localStorage.getItem('shuttle_trips')); if (t) window.TRIPS = t; } catch {}
+
+      document.getElementById('type-tb').innerHTML = window.VEHICLE_TYPES.map((t,i) => `
+        <tr><td>${t.code}</td><td>${t.name}</td><td>${t.seats}</td>
+        <td class="actions">
+          <button class="btn btn-sm btn-outline" onclick="editType(${i})">แก้ไข</button>
+          <button class="btn btn-sm btn-danger" onclick="delType(${i})">ลบ</button>
+        </td></tr>`).join('');
+      document.getElementById('veh-tb').innerHTML = window.VEHICLES.map((v,i) => {
+        const t = window.VEHICLE_TYPES.find(x => x.code === v.type);
+        return `<tr>
+          <td>${v.code}</td>
+          <td><strong>${v.plate}</strong></td>
+          <td>${t?t.name:v.type}</td>
+          <td>${t?t.seats:''}</td>
+          <td>${vehStatusBadge(v)}</td>
+          <td class="actions">
+            <button class="btn btn-sm btn-outline" onclick="editVeh(${i})">แก้ไข</button>
+            <button class="btn btn-sm btn-danger" onclick="delVeh(${i})">ลบ</button>
+          </td></tr>`;
+      }).join('');
+    }
+
+    function openType() {
+      document.getElementById('type-title').textContent = 'เพิ่มประเภทรถ';
+      document.getElementById('type-idx').value = -1;
+      document.getElementById('type-code').value = '';
+      document.getElementById('type-code').disabled = false;
+      document.getElementById('type-name').value = '';
+      document.getElementById('type-seats').value = 9;
+      document.getElementById('modal-type').style.display = 'flex';
+    }
+    function editType(i) {
+      const t = window.VEHICLE_TYPES[i];
+      document.getElementById('type-title').textContent = 'แก้ไขประเภทรถ';
+      document.getElementById('type-idx').value = i;
+      document.getElementById('type-code').value = t.code;
+      document.getElementById('type-code').disabled = true;
+      document.getElementById('type-name').value = t.name;
+      document.getElementById('type-seats').value = t.seats;
+      document.getElementById('modal-type').style.display = 'flex';
+    }
+    function saveType(e) {
+      e.preventDefault();
+      const idx = +document.getElementById('type-idx').value;
+      const data = { code: document.getElementById('type-code').value.trim(), name: document.getElementById('type-name').value.trim(), seats: +document.getElementById('type-seats').value };
+      if (idx < 0) {
+        if (window.VEHICLE_TYPES.some(t => t.code === data.code)) { alert('รหัสซ้ำ'); return; }
+        window.VEHICLE_TYPES.push(data);
+      } else Object.assign(window.VEHICLE_TYPES[idx], data);
+      closeM('modal-type'); render();
+    }
+    function delType(i) { if (confirm('ลบประเภทนี้?')) { window.VEHICLE_TYPES.splice(i,1); render(); } }
+
+    function fillTypeSel() {
+      document.getElementById('veh-type').innerHTML = window.VEHICLE_TYPES.map(t => `<option value="${t.code}">${t.name} (${t.seats} ที่)</option>`).join('');
+    }
+    function openVeh() {
+      document.getElementById('veh-title').textContent = 'เพิ่มรถ';
+      document.getElementById('veh-idx').value = -1;
+      document.getElementById('veh-code').value = '';
+      document.getElementById('veh-code').disabled = false;
+      document.getElementById('veh-plate').value = '';
+      document.getElementById('veh-status').value = 'active';
+      fillTypeSel();
+      document.getElementById('modal-veh').style.display = 'flex';
+    }
+    function editVeh(i) {
+      const v = window.VEHICLES[i];
+      document.getElementById('veh-title').textContent = 'แก้ไขรถ';
+      document.getElementById('veh-idx').value = i;
+      document.getElementById('veh-code').value = v.code;
+      document.getElementById('veh-code').disabled = true;
+      document.getElementById('veh-plate').value = v.plate;
+      fillTypeSel();
+      document.getElementById('veh-type').value = v.type;
+      document.getElementById('veh-status').value = v.status || 'active';
+      document.getElementById('modal-veh').style.display = 'flex';
+    }
+    function saveVeh(e) {
+      e.preventDefault();
+      const idx = +document.getElementById('veh-idx').value;
+      const data = {
+        code: document.getElementById('veh-code').value.trim(),
+        plate: document.getElementById('veh-plate').value.trim(),
+        type: document.getElementById('veh-type').value,
+        status: document.getElementById('veh-status').value
+      };
+      if (idx < 0) {
+        if (window.VEHICLES.some(v => v.code === data.code)) { alert('รหัสซ้ำ'); return; }
+        window.VEHICLES.push(data);
+      } else Object.assign(window.VEHICLES[idx], data);
+      closeM('modal-veh'); render();
+    }
+    function delVeh(i) { if (confirm('ลบรถคันนี้?')) { window.VEHICLES.splice(i,1); render(); } }
+
+    render();
+  </script>
+</body>
+</html>

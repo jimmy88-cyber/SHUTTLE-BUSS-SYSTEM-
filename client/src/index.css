@@ -472,3 +472,81 @@ a { text-decoration: none; color: inherit; }
   }
   .admin-sidebar a.active { border-right: none; }
 }
+
+/* ===== หน้าจองรถ (ตามดีไซน์ shuttle-system/passenger/book.html) ===== */
+.book-page .m-seat-row { gap: 24px; padding: 8px 0 4px; margin-bottom: 0; }
+.book-page .m-seat-btn { width: 44px; height: 44px; border-radius: 12px; font-weight: 700; }
+.book-page .m-seat-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.book-page .m-seat-num { font-size: 1.6rem; min-width: 36px; }
+.book-page .m-btn-outline { width: 100%; box-sizing: border-box; text-decoration: none; }
+.book-page .m-select:disabled {
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+.m-card-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 10px; color: #1e293b; }
+.passenger-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.passenger-card .p-title {
+  font-weight: 700;
+  font-size: 0.88rem;
+  margin-bottom: 8px;
+  color: #0f766e;
+}
+
+/* ===== หน้าการจอง (ตามดีไซน์ shuttle-system/passenger/bookings.html) ===== */
+.m-chip-row {
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px;
+  margin-bottom: 12px; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.m-chip-row::-webkit-scrollbar { display: none; }
+.m-chip {
+  flex-shrink: 0; padding: 7px 14px; border-radius: 20px;
+  border: 1.5px solid var(--border); background: white;
+  font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.m-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+.m-btn-sm { padding: 9px 14px; font-size: 0.82rem; width: auto; border-radius: 10px; }
+.m-btn-row { display: flex; gap: 8px; margin-top: 12px; }
+.m-btn-row .m-btn { flex: 1; }
+
+.m-badge-checked { background: #dcfce7; color: #15803d; }
+.m-badge-cancel { background: #fee2e2; color: #b91c1c; }
+.bookings-page .m-badge { padding: 3px 9px; font-size: 0.7rem; letter-spacing: 0.01em; }
+.bookings-page .m-badge-booked { background: #ccfbf1; color: #0f766e; }
+
+.m-qr-box {
+  text-align: center; padding: 20px;
+  background: #f8fafc; border-radius: 14px; border: 2px dashed #cbd5e1;
+}
+
+.m-sheet-overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,0.45);
+  z-index: 300; display: flex; align-items: flex-end; justify-content: center;
+  max-width: 430px; margin: 0 auto;
+}
+.m-sheet {
+  background: white; border-radius: 20px 20px 0 0;
+  padding: 12px 18px calc(18px + env(safe-area-inset-bottom, 0px));
+  width: 100%; max-height: 85vh; overflow-y: auto;
+  animation: slideUp 0.25s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(40px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.m-sheet-handle {
+  width: 36px; height: 4px; background: #cbd5e1; border-radius: 2px;
+  margin: 0 auto 14px;
+}
+.m-sheet h2 { font-size: 1.1rem; margin: 0 0 14px; }
+.m-sheet .m-btn-outline { width: 100%; }

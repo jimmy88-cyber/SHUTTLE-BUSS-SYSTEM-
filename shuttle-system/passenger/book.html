@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>จองรถ</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/mobile.css">
+  <style>
+    .m-select:disabled, .m-select.disabled {
+      background: #f1f5f9;
+      color: #64748b;
+      cursor: not-allowed;
+      opacity: 0.9;
+    }
+    .passenger-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .passenger-card .p-title {
+      font-weight: 700;
+      font-size: 0.88rem;
+      margin-bottom: 8px;
+      color: #0f766e;
+    }
+    .step-indicator {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      justify-content: center;
+    }
+    .step-dot {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; font-weight: 700;
+      background: #e2e8f0; color: #64748b;
+    }
+    .step-dot.active { background: var(--m-primary); color: white; }
+    .step-dot.done { background: #99f6e4; color: #0f766e; }
+    .trip-option {
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .trip-option:hover { border-color: #99f6e4; background: #f0fdfa; }
+    .trip-option.selected {
+      border-color: var(--m-primary);
+      background: #f0fdfa;
+      box-shadow: 0 0 0 3px rgba(13,148,136,0.12);
+    }
+    .trip-option .t-time { font-weight: 700; font-size: 1.05rem; }
+    .trip-option .t-meta { font-size: 0.8rem; color: #64748b; margin-top: 2px; }
+    .trip-option.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      background: #f8fafc;
+    }
+    #step2 { display: none; }
+  </style>
+</head>
+<body class="m-body">
+  <div class="m-status"><span>Shuttle</span><span>จองรถ</span></div>
+  <header class="m-header rounded">
+    <h1>🎫 จองรถรับส่ง</h1>
+    <p>ที่นั่งตามว่างจริง · สูงสุด 4 ที่/ครั้ง</p>
+  </header>
+  <div class="m-content">
+    <div class="step-indicator">
+      <div class="step-dot active" id="dot1">1</div>
+      <div class="step-dot" id="dot2">2</div>
+    </div>
+
+    <!-- ========== STEP 1: รายละเอียด + จำนวนคน + เส้นทาง ========== -->
+    <div id="step1" class="m-card">
+      <label class="m-label">จำนวนคนที่จอง</label>
+      <div class="m-seat-row">
+        <button type="button" class="m-seat-btn" id="btn-minus" onclick="chgSeats(-1)">−</button>
+        <div class="m-seat-num" id="seat-num">1</div>
+        <button type="button" class="m-seat-btn" id="btn-plus" onclick="chgSeats(1)">+</button>
+      </div>
+      <p id="seat-hint" style="text-align:center;font-size:0.8rem;color:#64748b;margin:0 0 14px;">สูงสุด 4 คน</p>
+
+      <label class="m-label">เส้นทาง</label>
+      <select class="m-select" id="route" onchange="onRouteChange()">
+        <option value="">-- เลือกเส้นทาง --</option>
+      </select>
+
+      <label class="m-label">จุดขึ้นรถ (ร่วมกันทุกคน)</label>
+      <select class="m-select" id="pickup" onchange="onPickupChange()">
+        <option value="">-- เลือกจุดขึ้น --</option>
+      </select>
+
+      <div id="passengers"></div>
+
+      <button class="m-btn m-btn-primary" id="btn-next" onclick="goStep2()" disabled>ถัดไป · เลือกรอบ</button>
+      <a href="home.html" class="m-btn m-btn-outline" style="margin-top:8px;">ยกเลิก</a>
+    </div>
+
+    <!-- ========== STEP 2: เลือกรอบ ========== -->
+    <div id="step2">
+      <div class="m-card">
+        <div class="m-card-title">สรุปรายละเอียด</div>
+        <div id="summary" style="font-size:0.85rem;line-height:1.6;color:#334155;"></div>
+      </div>
+      <div class="m-card">
+        <div class="m-card-title">เลือกรอบที่มีในเส้นทาง</div>
+        <div id="trip-list"></div>
+        <p id="trip-hint" style="text-align:center;font-size:0.8rem;color:#64748b;margin:8px 0 0;"></p>
+      </div>
+      <button class="m-btn m-btn-primary" id="btn-confirm" onclick="confirmBook()" disabled>ยืนยันจอง + สร้าง QR</button>
+      <button class="m-btn m-btn-outline" style="margin-top:8px;" onclick="backStep1()">← กลับแก้ไข</button>
+    </div>
+  </div>
+  <nav class="m-nav">
+    <a href="home.html"><span class="ico">🗺️</span>เส้นทาง</a>
+    <a href="book.html" class="active"><span class="ico">🎫</span>จองรถ</a>
+    <a href="bookings.html"><span class="ico">📋</span>การจอง</a>
+  </nav>
+  <script src="../js/data.js"></script>
+  <script>
+    const session = window.requireLogin('passenger');
+    let seats = 1;
+    let selectedTrip = null;
+    try { const b = JSON.parse(localStorage.getItem('shuttle_bookings')); if (b) window.BOOKINGS = b; } catch {}
+    function loadTrips() { try { const t = JSON.parse(localStorage.getItem('shuttle_trips')); if (t) window.TRIPS = t; } catch {} }
+    loadTrips();
+
+    // สถานะรอบ → ข้อความ (null = จองได้)
+    function closedLabel(t) {
+      if (t.status === 'completed')   return 'ปิดรอบการจองแล้ว';
+      if (t.status !== 'planned' && t.status !== 'in_progress') return 'ไม่เปิดจอง';
+      if (remain(t.code) <= 0)        return 'เต็ม';
+      return null;
+    }
+
+    function booked(c) {
+      return window.BOOKINGS.filter(b => b.trip === c && (b.status==='booked'||b.status==='checked_in')).reduce((s,b)=>s+b.seats,0);
+    }
+    function cap(t) {
+      const v = window.VEHICLES.find(x => x.code === t.vehicle);
+      const ty = window.VEHICLE_TYPES.find(x => x.code === (v&&v.type));
+      return ty ? ty.seats : 9;
+    }
+    function remain(c) {
+      const t = window.TRIPS.find(x => x.code === c);
+      return t ? Math.max(0, cap(t) - booked(c)) : 0;
+    }
+
+    // เติมเส้นทาง
+    window.ROUTES.forEach(r => {
+      document.getElementById('route').innerHTML += `<option value="${r.code}">${r.name} (${r.totalMin} นาที)</option>`;
+    });
+
+    function getRouteStops(routeCode) {
+      return window.ROUTE_STOPS
+        .filter(x => x.route === routeCode)
+        .sort((a, b) => a.seq - b.seq);
+    }
+
+    function onRouteChange() {
+      const routeCode = document.getElementById('route').value;
+      const pu = document.getElementById('pickup');
+      pu.innerHTML = '<option value="">-- เลือกจุดขึ้น --</option>';
+      if (routeCode) {
+        const stops = getRouteStops(routeCode);
+        // unique stops by seq order
+        const seen = new Set();
+        stops.forEach(s => {
+          if (!seen.has(s.stop)) {
+            seen.add(s.stop);
+            pu.innerHTML += `<option value="${s.stop}">${window.getStopName(s.stop)}</option>`;
+          }
+        });
+      }
+      onPickupChange();
+      updateNextBtn();
+    }
+
+    function onPickupChange() {
+      renderPassengers();
+      updateNextBtn();
+    }
+
+    function chgSeats(d) {
+      seats = Math.max(1, Math.min(4, seats + d));
+      document.getElementById('seat-num').textContent = seats;
+      document.getElementById('btn-plus').disabled = seats >= 4;
+      document.getElementById('btn-minus').disabled = seats <= 1;
+      document.getElementById('seat-hint').textContent = seats === 4 ? 'สูงสุดแล้ว' : 'สูงสุด 4 คน';
+      renderPassengers();
+      updateNextBtn();
+    }
+
+    function renderPassengers() {
+      const container = document.getElementById('passengers');
+      const routeCode = document.getElementById('route').value;
+      const pickupVal = document.getElementById('pickup').value;
+      container.innerHTML = '';
+
+      if (!routeCode || !pickupVal) {
+        container.innerHTML = '<p style="text-align:center;font-size:0.82rem;color:#94a3b8;margin:8px 0;">เลือกเส้นทางและจุดขึ้นก่อน เพื่อแสดงช่องจุดลง</p>';
+        return;
+      }
+
+      const stops = getRouteStops(routeCode);
+      const pickupSeq = stops.find(s => String(s.stop) === String(pickupVal))?.seq ?? 0;
+
+      // จุดลงที่เป็นไปได้: หลังจุดขึ้นในลำดับ (หรือจุดอื่นที่ไม่ใช่จุดขึ้น)
+      const dropOptions = [];
+      const seenDrop = new Set();
+      stops.forEach(s => {
+        if (String(s.stop) !== String(pickupVal) && !seenDrop.has(s.stop) && s.seq > pickupSeq) {
+          seenDrop.add(s.stop);
+          dropOptions.push(s);
+        }
+      });
+      // ถ้าไม่มีหลัง (เส้นทางวน) ให้เอาจุดอื่นทั้งหมดที่ไม่ใช่จุดขึ้น
+      if (dropOptions.length === 0) {
+        stops.forEach(s => {
+          if (String(s.stop) !== String(pickupVal) && !seenDrop.has(s.stop)) {
+            seenDrop.add(s.stop);
+            dropOptions.push(s);
+          }
+        });
+      }
+
+      for (let i = 1; i <= seats; i++) {
+        const card = document.createElement('div');
+        card.className = 'passenger-card';
+        card.innerHTML = `
+          <div class="p-title">ผู้โดยสาร ${i}</div>
+          <label class="m-label">จุดขึ้นรถ</label>
+          <select class="m-select disabled" disabled>
+            <option>${window.getStopName(pickupVal)}</option>
+          </select>
+          <label class="m-label">จุดลงรถ</label>
+          <select class="m-select dropoff-select" data-idx="${i}">
+            <option value="">-- เลือกจุดลง --</option>
+            ${dropOptions.map(s => `<option value="${s.stop}">${window.getStopName(s.stop)}</option>`).join('')}
+          </select>
+        `;
+        container.appendChild(card);
+      }
+
+      // restore previous dropoff values if possible
+      container.querySelectorAll('.dropoff-select').forEach(sel => {
+        sel.addEventListener('change', updateNextBtn);
+      });
+    }
+
+    function updateNextBtn() {
+      const routeCode = document.getElementById('route').value;
+      const pickupVal = document.getElementById('pickup').value;
+      const drops = [...document.querySelectorAll('.dropoff-select')].map(s => s.value);
+      const allDropOk = drops.length === seats && drops.every(v => v);
+      document.getElementById('btn-next').disabled = !(routeCode && pickupVal && allDropOk);
+    }
+
+    function goStep2() {
+      const routeCode = document.getElementById('route').value;
+      const pickupVal = document.getElementById('pickup').value;
+      const drops = [...document.querySelectorAll('.dropoff-select')].map(s => +s.value);
+      if (!routeCode || !pickupVal || drops.some(d => !d)) {
+        alert('กรุณากรอกข้อมูลให้ครบ');
+        return;
+      }
+      if (drops.some(d => d === +pickupVal)) {
+        alert('จุดขึ้น–ลงต้องต่างกัน');
+        return;
+      }
+
+      // สรุป
+      const routeName = window.getRouteName(routeCode);
+      const puName = window.getStopName(pickupVal);
+      let sumHtml = `<b>เส้นทาง</b> ${routeName}<br><b>จุดขึ้น</b> ${puName}<br><b>จำนวน</b> ${seats} คน<br>`;
+      drops.forEach((d, i) => {
+        sumHtml += `<b>ผู้โดยสาร ${i+1} ลงที่</b> ${window.getStopName(d)}<br>`;
+      });
+      document.getElementById('summary').innerHTML = sumHtml;
+
+      // โหลดรอบของเส้นทางนี้
+      loadTrips();
+      const list = document.getElementById('trip-list');
+      list.innerHTML = '';
+      selectedTrip = null;
+      document.getElementById('btn-confirm').disabled = true;
+
+      const trips = window.TRIPS.filter(t => t.route === routeCode);
+      if (trips.length === 0) {
+        list.innerHTML = '<div class="m-empty" style="padding:20px;text-align:center;color:#94a3b8;">ไม่มีรอบในเส้นทางนี้</div>';
+        document.getElementById('trip-hint').textContent = '';
+        showStep(2);
+        return;
+      }
+
+      let availableCount = 0;
+      trips.forEach(t => {
+        const closed = closedLabel(t);
+        const r = remain(t.code);
+        const enough = r >= seats;
+        const disabled = !!closed || !enough;
+        if (!disabled) availableCount++;
+
+        const div = document.createElement('div');
+        div.className = 'trip-option' + (disabled ? ' disabled' : '');
+        div.dataset.code = t.code;
+        const head = t.datetime.slice(0, 16).replace('T', ' ');
+        const vehicle = window.getVehicle(t.vehicle);
+        let statusText = closed || (enough ? `ว่าง ${r} ที่` : `ว่าง ${r} ที่ (ไม่พอ)`);
+        div.innerHTML = `
+          <div class="t-time">${head}</div>
+          <div class="t-meta">${vehicle} · ${statusText}</div>
+        `;
+        if (!disabled) {
+          div.onclick = () => {
+            list.querySelectorAll('.trip-option').forEach(el => el.classList.remove('selected'));
+            div.classList.add('selected');
+            selectedTrip = t.code;
+            document.getElementById('btn-confirm').disabled = false;
+          };
+        }
+        list.appendChild(div);
+      });
+
+      document.getElementById('trip-hint').textContent = availableCount
+        ? `มี ${availableCount} รอบที่จองได้สำหรับ ${seats} คน`
+        : 'ไม่มีรอบที่ว่างพอในขณะนี้';
+      showStep(2);
+    }
+
+    function showStep(n) {
+      document.getElementById('step1').style.display = n === 1 ? 'block' : 'none';
+      document.getElementById('step2').style.display = n === 2 ? 'block' : 'none';
+      document.getElementById('dot1').className = 'step-dot' + (n === 1 ? ' active' : ' done');
+      document.getElementById('dot2').className = 'step-dot' + (n === 2 ? ' active' : '');
+    }
+
+    function backStep1() {
+      selectedTrip = null;
+      showStep(1);
+    }
+
+    function confirmBook() {
+      if (!selectedTrip) { alert('เลือกรอบก่อน'); return; }
+      loadTrips();
+      const t = window.TRIPS.find(x => x.code === selectedTrip);
+      const closed = t ? closedLabel(t) : 'ไม่พบรอบนี้';
+      if (closed) { alert('ไม่สามารถจองได้\nรอบนี้' + closed); goStep2(); return; }
+
+      const pickup = +document.getElementById('pickup').value;
+      const drops = [...document.querySelectorAll('.dropoff-select')].map(s => +s.value);
+      const r = remain(selectedTrip);
+      if (seats > r) { alert('ที่นั่งไม่พอ (ว่าง '+r+')'); goStep2(); return; }
+
+      // QR ร่วมกันต่อคนต่อรอบ → สแกนครั้งเดียวครบทุกที่นั่งของคนนี้ในรอบนี้
+      const groupQr = 'QR-' + session.userCode + '-' + selectedTrip;
+      const allSameDrop = drops.every(d => d === drops[0]);
+      const newBookings = [];
+      if (allSameDrop) {
+        const code = String(window.BOOKINGS.length + 1).padStart(2, '0');
+        newBookings.push({
+          code, seats, user: session.userCode, pickup, dropoff: drops[0],
+          trip: selectedTrip, status: 'booked',
+          bookedAt: new Date().toISOString().slice(0,19).replace('T',' '), qr: groupQr
+        });
+      } else {
+        drops.forEach((drop) => {
+          const code = String(window.BOOKINGS.length + newBookings.length + 1).padStart(2, '0');
+          newBookings.push({
+            code, seats: 1, user: session.userCode, pickup, dropoff: drop,
+            trip: selectedTrip, status: 'booked',
+            bookedAt: new Date().toISOString().slice(0,19).replace('T',' '), qr: groupQr
+          });
+        });
+      }
+
+      window.BOOKINGS.push(...newBookings);
+      try { localStorage.setItem('shuttle_bookings', JSON.stringify(window.BOOKINGS)); } catch {}
+
+      const msg = allSameDrop
+        ? `จองสำเร็จ!\nรหัส ${newBookings[0].code}\nQR: ${groupQr}\n${seats} ที่นั่ง`
+        : `จองสำเร็จ ${newBookings.length} รายการ!\nQR: ${groupQr}\n` + newBookings.map(b => b.code + ' → ' + window.getStopName(b.dropoff)).join('\n');
+      alert(msg);
+      location.href = 'bookings.html';
+    }
+
+    // init
+    document.getElementById('btn-minus').disabled = true;
+    renderPassengers();
+
+    // รองรับ ?trip= จากหน้าอื่น (ถ้ามี)
+    const q = new URLSearchParams(location.search).get('trip');
+    if (q) {
+      const t = window.TRIPS.find(x => x.code === q);
+      if (t && !closedLabel(t)) {
+        document.getElementById('route').value = t.route;
+        onRouteChange();
+        // preselect later in step2 if needed
+      }
+    }
+
+    window.addEventListener('pageshow', () => { loadTrips(); });
+  </script>
+</body>
+</html>

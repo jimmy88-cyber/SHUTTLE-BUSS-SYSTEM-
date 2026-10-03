@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ผู้ใช้บริการ | Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container">
+      <div class="navbar-brand">🚌 <span>Shuttle</span> Admin</div>
+      <div class="user-info" id="user-display"></div>
+    </div>
+  </nav>
+  <div class="admin-layout">
+    <aside class="sidebar"><ul class="sidebar-menu" id="sidebar-menu"></ul></aside>
+    <main class="main-content">
+      <div class="page-header" style="padding-top:0;"><h1>ผู้ใช้บริการ</h1></div>
+      <div class="card">
+        <table>
+          <thead><tr><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>รหัสผู้ใช้</th><th>อีเมล</th><th>เบอร์</th></tr></thead>
+          <tbody id="u-table"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+  <script src="../js/data.js"></script>
+  <script src="../js/admin-common.js"></script>
+  <script>
+    window.initAdminPage('users');
+    window.checkPageRight(4);
+    document.getElementById('u-table').innerHTML = window.USERS.map(u =>
+      `<tr><td>${u.code}</td><td>${u.first} ${u.last}</td><td>${u.username}</td><td>${u.email}</td><td>${u.phone}</td></tr>`
+    ).join('');
+  </script>
+</body>
+</html>

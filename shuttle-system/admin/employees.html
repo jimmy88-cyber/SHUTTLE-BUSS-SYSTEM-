@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>พนักงาน | Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .perm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-top: 8px; }
+    .perm-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      background: #f8fafc; border-radius: 8px; border: 1.5px solid var(--border);
+      cursor: pointer; user-select: none; transition: all 0.15s;
+    }
+    .perm-item:hover { border-color: var(--primary); background: #f0fdfa; }
+    .perm-item input { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
+    .perm-item .perm-label { font-size: 0.9rem; font-weight: 500; }
+    .perm-item .perm-bit { margin-left: auto; font-size: 0.75rem; color: var(--text-muted); font-family: monospace; }
+    .perm-code { display: inline-flex; gap: 2px; background: #f1f5f9; padding: 4px 10px; border-radius: 6px; font-family: monospace; font-weight: 700; letter-spacing: 1px; }
+    .bit-on { color: #0d9488; } .bit-off { color: #94a3b8; }
+    .perm-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; font-size: 0.8rem; color: var(--text-muted); }
+    .perm-legend .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); display: inline-block; margin-right: 4px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container">
+      <div class="navbar-brand">🚌 <span>Shuttle</span> Admin</div>
+      <div class="user-info" id="user-display"></div>
+    </div>
+  </nav>
+
+  <div class="admin-layout">
+    <aside class="sidebar">
+      <ul class="sidebar-menu" id="sidebar-menu"></ul>
+    </aside>
+
+    <main class="main-content">
+      <div class="page-header" style="padding-top:0;">
+        <h1>จัดการพนักงาน & สิทธิ์</h1>
+        <p>Master.1 จัดการพนักงาน + Master.2 กำหนดสิทธิ์แบบ Dynamic</p>
+      </div>
+
+      <!-- ตำแหน่ง + สิทธิ์ -->
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-header">
+          <h2 class="card-title">ตำแหน่ง & สิทธิ์การเข้าถึงหน้าจอ (Dynamic)</h2>
+          <button class="btn btn-primary btn-sm" onclick="openPosModal()">+ เพิ่มตำแหน่ง</button>
+        </div>
+        <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:16px;">
+          สิทธิ์ 6 หลัก • <strong>ติ๊ก = 1 (เข้าถึงได้)</strong> • <strong>ไม่ติ๊ก = 0</strong> • แก้ไขได้ตลอดเวลา ไม่ fix
+        </p>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>รหัส</th><th>ชื่อตำแหน่ง</th><th>รหัสสิทธิ์</th><th>หน้าจอที่เข้าถึง</th><th>จัดการ</th></tr>
+            </thead>
+            <tbody id="pos-table"></tbody>
+          </table>
+        </div>
+        <div class="perm-legend">
+          <span><span class="dot"></span>1=แดชบอร์ด</span>
+          <span><span class="dot"></span>2=จัดการรถ</span>
+          <span><span class="dot"></span>3=เส้นทาง</span>
+          <span><span class="dot"></span>4=รอบรถ</span>
+          <span><span class="dot"></span>5=จอง+ผู้ใช้</span>
+          <span><span class="dot"></span>6=พนักงาน+ขึ้นรถ</span>
+        </div>
+      </div>
+
+      <!-- แผนก -->
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-header">
+          <h2 class="card-title">แผนก</h2>
+          <button class="btn btn-primary btn-sm" onclick="openDept()">+ เพิ่มแผนก</button>
+        </div>
+        <table>
+          <thead><tr><th>รหัส</th><th>ชื่อแผนก</th><th>จัดการ</th></tr></thead>
+          <tbody id="dept-table"></tbody>
+        </table>
+      </div>
+
+      <!-- พนักงาน -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">พนักงาน</h2>
+          <button class="btn btn-primary btn-sm" onclick="openEmpModal()">+ เพิ่มพนักงาน</button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>แผนก</th><th>ตำแหน่ง</th><th>จัดการ</th></tr>
+            </thead>
+            <tbody id="emp-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal ตำแหน่ง -->
+  <div id="pos-modal" class="modal-overlay" style="display:none;" onclick="closePosModal()">
+    <div class="modal" style="max-width:560px;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="pos-modal-title">เพิ่มตำแหน่ง</h2>
+        <button class="close-btn" onclick="closePosModal()">×</button>
+      </div>
+      <form onsubmit="savePos(event)">
+        <input type="hidden" id="pos-edit-idx" value="-1">
+        <div class="form-group">
+          <label class="form-label">รหัสตำแหน่ง *</label>
+          <input type="text" class="form-control" id="pos-code" maxlength="2" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ชื่อตำแหน่ง *</label>
+          <input type="text" class="form-control" id="pos-name" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">สิทธิ์ (ติ๊ก = เข้าถึงได้)</label>
+          <div class="perm-grid" id="perm-cbs"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">รหัสสิทธิ์</label>
+          <div style="font-size:1.5rem; font-family:monospace; font-weight:700; letter-spacing:4px; color:var(--primary);" id="perm-preview">000000</div>
+        </div>
+        <div style="display:flex; gap:12px; margin-top:20px;">
+          <button type="button" class="btn btn-outline" style="flex:1;" onclick="closePosModal()">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" style="flex:2;">บันทึก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal พนักงาน -->
+  <div id="emp-modal" class="modal-overlay" style="display:none;" onclick="closeEmpModal()">
+    <div class="modal" style="max-width:480px;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="emp-modal-title">เพิ่มพนักงาน</h2>
+        <button class="close-btn" onclick="closeEmpModal()">×</button>
+      </div>
+      <form onsubmit="saveEmp(event)">
+        <input type="hidden" id="emp-edit-idx" value="-1">
+        <div class="form-group">
+          <label class="form-label">รหัสพนักงาน *</label>
+          <input type="text" class="form-control" id="emp-code" required placeholder="EMP005">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">ชื่อ *</label>
+            <input type="text" class="form-control" id="emp-first" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">นามสกุล *</label>
+            <input type="text" class="form-control" id="emp-last" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">แผนก *</label>
+          <select class="form-control" id="emp-dept" required></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ตำแหน่ง *</label>
+          <select class="form-control" id="emp-pos" required></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">รหัสผ่าน *</label>
+          <input type="text" class="form-control" id="emp-pass" value="1234" required>
+        </div>
+        <div style="display:flex; gap:12px; margin-top:20px;">
+          <button type="button" class="btn btn-outline" style="flex:1;" onclick="closeEmpModal()">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" style="flex:2;">บันทึก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Modal แผนก -->
+  <div id="dept-modal" class="modal-overlay" style="display:none;" onclick="closeDeptModal()">
+    <div class="modal" style="max-width:420px;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="dept-modal-title">เพิ่มแผนก</h2>
+        <button class="close-btn" onclick="closeDeptModal()">×</button>
+      </div>
+      <form onsubmit="saveDept(event)">
+        <input type="hidden" id="dept-edit-idx" value="-1">
+        <div class="form-group">
+          <label class="form-label">รหัสแผนก *</label>
+          <input type="text" class="form-control" id="dept-code" maxlength="2" required placeholder="เช่น 05">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ชื่อแผนก *</label>
+          <input type="text" class="form-control" id="dept-name" required placeholder="เช่น ฝ่ายการตลาด">
+        </div>
+        <div style="display:flex; gap:12px; margin-top:20px;">
+          <button type="button" class="btn btn-outline" style="flex:1;" onclick="closeDeptModal()">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" style="flex:2;">บันทึกแผนก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../js/data.js"></script>
+  <script src="../js/admin-common.js"></script>
+  <script>
+    window.initAdminPage('employees');
+    window.checkPageRight(5);
+
+    // ใช้ array จาก data.js (mutable)
+    let positions = [...window.POSITIONS];
+    let employees = [...window.EMPLOYEES];
+
+    function formatRights(r) {
+      return r.split('').map(b => `<span class="${b==='1'?'bit-on':'bit-off'}">${b}</span>`).join('');
+    }
+    function rightsToNames(r) {
+      return window.SCREEN_MAP.filter(s => r[s.bit]==='1').map(s => s.name).join(', ') || '<span style="color:#94a3b8">ไม่มี</span>';
+    }
+
+    function renderPos() {
+      document.getElementById('pos-table').innerHTML = positions.map((p, i) => `
+        <tr>
+          <td><strong>${p.code}</strong></td>
+          <td>${p.name}</td>
+          <td><span class="perm-code">${formatRights(p.rights)}</span></td>
+          <td style="font-size:0.85rem">${rightsToNames(p.rights)}</td>
+          <td class="actions">
+            <button class="btn btn-sm btn-outline" onclick="editPos(${i})">แก้ไขสิทธิ์</button>
+            <button class="btn btn-sm btn-danger" onclick="delPos(${i})">ลบ</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function renderDept() {
+      document.getElementById('dept-table').innerHTML = window.DEPARTMENTS.map((d, i) =>
+        `<tr>
+          <td><strong>${d.code}</strong></td>
+          <td>${d.name}</td>
+          <td class="actions">
+            <button class="btn btn-sm btn-outline" onclick="editDept(${i})">แก้ไข</button>
+            <button class="btn btn-sm btn-danger" onclick="delDept(${i})">ลบ</button>
+          </td>
+        </tr>`
+      ).join('');
+    }
+
+    function openDept() {
+      document.getElementById('dept-modal-title').textContent = 'เพิ่มแผนก';
+      document.getElementById('dept-edit-idx').value = -1;
+      document.getElementById('dept-code').value = '';
+      document.getElementById('dept-code').disabled = false;
+      document.getElementById('dept-name').value = '';
+      document.getElementById('dept-modal').style.display = 'flex';
+    }
+    function editDept(i) {
+      const d = window.DEPARTMENTS[i];
+      document.getElementById('dept-modal-title').textContent = 'แก้ไขแผนก';
+      document.getElementById('dept-edit-idx').value = i;
+      document.getElementById('dept-code').value = d.code;
+      document.getElementById('dept-code').disabled = true;
+      document.getElementById('dept-name').value = d.name;
+      document.getElementById('dept-modal').style.display = 'flex';
+    }
+    function closeDeptModal() {
+      document.getElementById('dept-modal').style.display = 'none';
+    }
+    function saveDept(e) {
+      e.preventDefault();
+      const idx = +document.getElementById('dept-edit-idx').value;
+      const code = document.getElementById('dept-code').value.trim();
+      const name = document.getElementById('dept-name').value.trim();
+      if (!code || !name) { alert('กรอกข้อมูลให้ครบ'); return; }
+      if (idx === -1) {
+        if (window.DEPARTMENTS.some(d => d.code === code)) {
+          alert('รหัสแผนกนี้มีอยู่แล้ว');
+          return;
+        }
+        window.DEPARTMENTS.push({ code, name });
+      } else {
+        window.DEPARTMENTS[idx].name = name;
+      }
+      renderDept();
+      // อัปเดต dropdown พนักงานถ้าเปิดอยู่
+      const sel = document.getElementById('emp-dept');
+      if (sel) {
+        const cur = sel.value;
+        sel.innerHTML = window.DEPARTMENTS.map(d =>
+          `<option value="${d.code}">${d.name}</option>`
+        ).join('');
+        if (cur) sel.value = cur;
+      }
+      closeDeptModal();
+      alert('บันทึกแผนกเรียบร้อย');
+    }
+    function delDept(i) {
+      const d = window.DEPARTMENTS[i];
+      const used = employees.some(e => e.dept === d.code);
+      if (used) {
+        alert('ไม่สามารถลบได้ — มีพนักงานอยู่ในแผนกนี้');
+        return;
+      }
+      if (confirm('ยืนยันลบแผนก "' + d.name + '" ?')) {
+        window.DEPARTMENTS.splice(i, 1);
+        renderDept();
+      }
+    }
+
+    function renderEmp() {
+      document.getElementById('emp-table').innerHTML = employees.map((e, i) => {
+        const dept = window.DEPARTMENTS.find(d => d.code === e.dept);
+        const pos = positions.find(p => p.code === e.pos);
+        return `<tr>
+          <td>${e.code}</td>
+          <td>${e.first} ${e.last}</td>
+          <td>${dept ? dept.name : e.dept}</td>
+          <td>${pos ? pos.name : e.pos}</td>
+          <td class="actions">
+            <button class="btn btn-sm btn-outline" onclick="editEmp(${i})">แก้ไข</button>
+            <button class="btn btn-sm btn-danger" onclick="delEmp(${i})">ลบ</button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    // ===== Position Modal =====
+    function buildCbs(rights) {
+      document.getElementById('perm-cbs').innerHTML = window.SCREEN_MAP.map(s => `
+        <label class="perm-item">
+          <input type="checkbox" data-bit="${s.bit}" ${rights[s.bit]==='1'?'checked':''} onchange="updPreview()">
+          <span class="perm-label">${s.name}</span>
+          <span class="perm-bit">หลัก ${s.bit+1}</span>
+        </label>
+      `).join('');
+      updPreview();
+    }
+    function updPreview() {
+      let c = '';
+      document.querySelectorAll('#perm-cbs input').forEach(cb => c += cb.checked ? '1' : '0');
+      document.getElementById('perm-preview').textContent = c;
+    }
+    function openPosModal() {
+      document.getElementById('pos-modal-title').textContent = 'เพิ่มตำแหน่ง';
+      document.getElementById('pos-edit-idx').value = -1;
+      document.getElementById('pos-code').value = '';
+      document.getElementById('pos-code').disabled = false;
+      document.getElementById('pos-name').value = '';
+      buildCbs('000000');
+      document.getElementById('pos-modal').style.display = 'flex';
+    }
+    function editPos(i) {
+      const p = positions[i];
+      document.getElementById('pos-modal-title').textContent = 'แก้ไขสิทธิ์ตำแหน่ง';
+      document.getElementById('pos-edit-idx').value = i;
+      document.getElementById('pos-code').value = p.code;
+      document.getElementById('pos-code').disabled = true;
+      document.getElementById('pos-name').value = p.name;
+      buildCbs(p.rights);
+      document.getElementById('pos-modal').style.display = 'flex';
+    }
+    function closePosModal() { document.getElementById('pos-modal').style.display = 'none'; }
+    function savePos(e) {
+      e.preventDefault();
+      const idx = +document.getElementById('pos-edit-idx').value;
+      const code = document.getElementById('pos-code').value.trim();
+      const name = document.getElementById('pos-name').value.trim();
+      const rights = document.getElementById('perm-preview').textContent;
+      if (idx === -1) {
+        if (positions.some(p => p.code === code)) { alert('รหัสซ้ำ'); return; }
+        positions.push({ code, name, rights });
+      } else {
+        positions[idx].name = name;
+        positions[idx].rights = rights;
+        // sync กลับ data.js reference
+        const orig = window.POSITIONS.find(p => p.code === code);
+        if (orig) { orig.name = name; orig.rights = rights; }
+      }
+      renderPos();
+      closePosModal();
+      alert('บันทึกเรียบร้อย\nรหัสสิทธิ์: ' + rights);
+    }
+    function delPos(i) {
+      if (confirm('ลบตำแหน่ง "' + positions[i].name + '" ?')) {
+        positions.splice(i, 1);
+        renderPos();
+      }
+    }
+
+    // ===== Employee Modal =====
+    function fillSelects() {
+      document.getElementById('emp-dept').innerHTML = window.DEPARTMENTS.map(d =>
+        `<option value="${d.code}">${d.name}</option>`
+      ).join('');
+      document.getElementById('emp-pos').innerHTML = positions.map(p =>
+        `<option value="${p.code}">${p.name}</option>`
+      ).join('');
+    }
+    function openEmpModal() {
+      document.getElementById('emp-modal-title').textContent = 'เพิ่มพนักงาน';
+      document.getElementById('emp-edit-idx').value = -1;
+      document.getElementById('emp-code').value = '';
+      document.getElementById('emp-code').disabled = false;
+      document.getElementById('emp-first').value = '';
+      document.getElementById('emp-last').value = '';
+      document.getElementById('emp-pass').value = '1234';
+      fillSelects();
+      document.getElementById('emp-modal').style.display = 'flex';
+    }
+    function editEmp(i) {
+      const e = employees[i];
+      document.getElementById('emp-modal-title').textContent = 'แก้ไขพนักงาน';
+      document.getElementById('emp-edit-idx').value = i;
+      document.getElementById('emp-code').value = e.code;
+      document.getElementById('emp-code').disabled = true;
+      document.getElementById('emp-first').value = e.first;
+      document.getElementById('emp-last').value = e.last;
+      document.getElementById('emp-pass').value = e.password || '1234';
+      fillSelects();
+      document.getElementById('emp-dept').value = e.dept;
+      document.getElementById('emp-pos').value = e.pos;
+      document.getElementById('emp-modal').style.display = 'flex';
+    }
+    function closeEmpModal() { document.getElementById('emp-modal').style.display = 'none'; }
+    function saveEmp(e) {
+      e.preventDefault();
+      const idx = +document.getElementById('emp-edit-idx').value;
+      const data = {
+        code: document.getElementById('emp-code').value.trim().toUpperCase(),
+        first: document.getElementById('emp-first').value.trim(),
+        last: document.getElementById('emp-last').value.trim(),
+        dept: document.getElementById('emp-dept').value,
+        pos: document.getElementById('emp-pos').value,
+        password: document.getElementById('emp-pass').value
+      };
+      if (idx === -1) {
+        if (employees.some(x => x.code === data.code)) { alert('รหัสซ้ำ'); return; }
+        employees.push(data);
+        window.EMPLOYEES.push(data);
+      } else {
+        Object.assign(employees[idx], data);
+        const orig = window.EMPLOYEES.find(x => x.code === data.code);
+        if (orig) Object.assign(orig, data);
+      }
+      renderEmp();
+      closeEmpModal();
+      alert('บันทึกพนักงานเรียบร้อย');
+    }
+    function delEmp(i) {
+      if (confirm('ลบ ' + employees[i].first + ' ?')) {
+        const code = employees[i].code;
+        employees.splice(i, 1);
+        const oi = window.EMPLOYEES.findIndex(x => x.code === code);
+        if (oi >= 0) window.EMPLOYEES.splice(oi, 1);
+        renderEmp();
+      }
+    }
+
+    renderPos();
+    renderDept();
+    renderEmp();
+  </script>
+</body>
+</html>

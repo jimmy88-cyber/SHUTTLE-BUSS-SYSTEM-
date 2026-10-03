@@ -111,6 +111,7 @@ function mapBooking(r) {
     status: r.STATUS,
     qr_code: r.QR_CODE,
     booked_at: iso(r.BOOKED_AT),
+    boarded: r.BOARDED > 0,
     user: {
       user_id: r.USER_ID,
       passenger_name: r.PASSENGER_NAME,
@@ -147,7 +148,8 @@ const BOOKING_SQL = `
          AppUser.first_name||' '||AppUser.last_name driver_name,
          (SELECT name FROM Stop WHERE stop_id = Booking.pickup_stop_id) pickup_name,
          (SELECT name FROM Stop WHERE stop_id = Booking.dropoff_stop_id) dropoff_name,
-         (SELECT first_name||' '||last_name FROM AppUser WHERE user_id = Booking.user_id) passenger_name
+         (SELECT first_name||' '||last_name FROM AppUser WHERE user_id = Booking.user_id) passenger_name,
+         (SELECT COUNT(*) FROM BoardingRecord WHERE booking_id = Booking.booking_id) boarded
   FROM Booking, Schedule, Route, Vehicle, AppUser
   WHERE Booking.schedule_id = Schedule.schedule_id
     AND Schedule.route_id = Route.route_id
@@ -478,88 +480,87 @@ app.get("/api/bookings/by-qr/:qr", async (req, res) => {
   }
 });
 
+// รับได้ทั้ง dropoff_stop_id (ทุกคนลงจุดเดียว) หรือ dropoff_stop_ids (จุดลงของผู้โดยสารแต่ละคน)
+// ผู้โดยสารที่ลงจุดเดียวกันจะรวมเป็น booking เดียว ทุก booking บันทึกใน transaction เดียวกัน
 app.post("/api/bookings", async (req, res) => {
   try {
-    const { user_id, schedule_id, pickup_stop_id, dropoff_stop_id, num_seats } = req.body;
-    if (!user_id || !schedule_id || !pickup_stop_id || !dropoff_stop_id || !num_seats) {
+    const { user_id, schedule_id, pickup_stop_id, dropoff_stop_id, dropoff_stop_ids, num_seats } = req.body;
+    const seats = Number(num_seats);
+    const drops = (Array.isArray(dropoff_stop_ids) ? dropoff_stop_ids : Array(seats).fill(dropoff_stop_id)).map(Number);
+    if (!user_id || !schedule_id || !pickup_stop_id || !seats || drops.some((d) => !d)) {
       return res.status(400).json({ message: "ข้อมูลไม่ครบ" });
     }
-    const seats = Number(num_seats);
     if (seats < 1 || seats > 4) return res.status(400).json({ message: "จองได้ 1-4 ที่นั่งต่อครั้ง" });
+    if (drops.length !== seats) return res.status(400).json({ message: "จำนวนจุดลงไม่ตรงกับจำนวนผู้โดยสาร" });
+    const pickup = Number(pickup_stop_id);
+    if (drops.includes(pickup)) return res.status(400).json({ message: "จุดขึ้น–ลงต้องต่างกัน" });
 
     await withDb(async (conn) => {
       const sch = await one(conn, SCHEDULE_SQL + ` AND Schedule.schedule_id = :id`, { id: schedule_id });
       if (!sch) return res.status(404).json({ message: "ไม่พบรอบรถ" });
+      if (sch.STATUS === "completed") return res.status(400).json({ message: "รอบนี้ปิดรอบการจองแล้ว" });
+      if (!["planned", "in_progress"].includes(sch.STATUS)) {
+        return res.status(400).json({ message: "รอบนี้ไม่เปิดจอง" });
+      }
 
       const capacity = await capacityOf(conn, sch.VEHICLE_ID);
       const available = capacity - (await seatsBooked(conn, schedule_id));
-      if (seats > available) return res.status(400).json({ message: `ที่นั่งเหลือเพียง ${available} ที่` });
+      if (seats > available) return res.status(400).json({ message: `ที่นั่งไม่พอ (ว่าง ${available})` });
 
-      const pOk = await one(conn, `SELECT 1 ok FROM RouteStop WHERE route_id=:r AND stop_id=:s AND ROWNUM=1`, {
-        r: sch.ROUTE_ID,
-        s: Number(pickup_stop_id),
-      });
-      const dOk = await one(conn, `SELECT 1 ok FROM RouteStop WHERE route_id=:r AND stop_id=:s AND ROWNUM=1`, {
-        r: sch.ROUTE_ID,
-        s: Number(dropoff_stop_id),
-      });
-      if (!pOk || !dOk) return res.status(400).json({ message: "จุดจอดไม่อยู่ในเส้นทางนี้" });
+      const routeStops = (
+        await all(conn, `SELECT DISTINCT stop_id FROM RouteStop WHERE route_id=:r`, { r: sch.ROUTE_ID })
+      ).map((r) => r.STOP_ID);
+      if (![pickup, ...drops].every((s) => routeStops.includes(s))) {
+        return res.status(400).json({ message: "จุดจอดไม่อยู่ในเส้นทางนี้" });
+      }
+
+      const groups = new Map();
+      for (const d of drops) groups.set(d, (groups.get(d) || 0) + 1);
 
       const next = await one(conn, `SELECT NVL(MAX(TO_NUMBER(booking_id)),0)+1 id FROM Booking`);
-      const booking_id = String(next.ID).padStart(4, "0");
-      const qr_code = `MUT-${booking_id}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-
-      await q(
-        conn,
-        `INSERT INTO Booking (booking_id,user_id,schedule_id,pickup_stop_id,dropoff_stop_id,num_seats,status,qr_code,booked_at)
-         VALUES (:booking_id,:user_id,:schedule_id,:pickup,:dropoff,:num_seats,'booked',:qr_code,SYSTIMESTAMP)`,
-        {
-          booking_id,
-          user_id: Number(user_id),
-          schedule_id,
-          pickup: Number(pickup_stop_id),
-          dropoff: Number(dropoff_stop_id),
-          num_seats: seats,
-          qr_code,
+      const bookings = [];
+      let n = next.ID;
+      try {
+        for (const [dropoff, count] of groups) {
+          const booking_id = String(n++).padStart(4, "0");
+          const qr_code = `MUT-${booking_id}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+          await conn.execute(
+            `INSERT INTO Booking (booking_id,user_id,schedule_id,pickup_stop_id,dropoff_stop_id,num_seats,status,qr_code,booked_at)
+             VALUES (:booking_id,:user_id,:schedule_id,:pickup,:dropoff,:num_seats,'booked',:qr_code,SYSTIMESTAMP)`,
+            { booking_id, user_id: Number(user_id), schedule_id, pickup, dropoff, num_seats: count, qr_code },
+            { autoCommit: false }
+          );
+          bookings.push({ booking_id, dropoff, num_seats: count, qr_code });
         }
-      );
+        await conn.commit();
+      } catch (e) {
+        await conn.rollback().catch(() => {});
+        throw e;
+      }
 
-      const names = await one(
-        conn,
-        `SELECT (SELECT name FROM Stop WHERE stop_id=:p) pickup_name,
-                (SELECT name FROM Stop WHERE stop_id=:d) dropoff_name FROM dual`,
-        { p: Number(pickup_stop_id), d: Number(dropoff_stop_id) }
+      const names = Object.fromEntries(
+        (await all(conn, `SELECT stop_id, name FROM Stop`)).map((s) => [s.STOP_ID, s.NAME])
       );
+      const result = bookings.map((b) => ({
+        booking_id: b.booking_id,
+        num_seats: b.num_seats,
+        status: "booked",
+        qr_code: b.qr_code,
+        booked_at: new Date().toISOString(),
+        user: { user_id: Number(user_id) },
+        schedule: { schedule_id, departure_time: iso(sch.DEPARTURE_TIME) },
+        route: { route_name: sch.ROUTE_NAME },
+        vehicle: { plate_number: sch.PLATE_NUMBER, capacity },
+        driver: { driver_name: sch.DRIVER_NAME },
+        pickup: { stop_id: pickup, stop_name: names[pickup] },
+        dropoff: { stop_id: b.dropoff, stop_name: names[b.dropoff] },
+      }));
 
       res.status(201).json({
         message: "จองสำเร็จ",
-        booking: {
-          booking_id,
-          num_seats: seats,
-          status: "booked",
-          qr_code,
-          booked_at: new Date().toISOString(),
-          user: { user_id: Number(user_id) },
-          schedule: {
-            schedule_id,
-            departure_time: iso(sch.DEPARTURE_TIME),
-          },
-          route: { route_name: sch.ROUTE_NAME },
-          vehicle: {
-            plate_number: sch.PLATE_NUMBER,
-            capacity,
-          },
-          driver: { driver_name: sch.DRIVER_NAME },
-          pickup: {
-            stop_id: Number(pickup_stop_id),
-            stop_name: names.PICKUP_NAME,
-          },
-          dropoff: {
-            stop_id: Number(dropoff_stop_id),
-            stop_name: names.DROPOFF_NAME,
-          },
-          seats_available: available - seats,
-        },
+        booking: result[0],
+        bookings: result,
+        seats_available: available - seats,
       });
     });
   } catch (e) {
@@ -570,9 +571,15 @@ app.post("/api/bookings", async (req, res) => {
 app.patch("/api/bookings/:id/cancel", async (req, res) => {
   try {
     await withDb(async (conn) => {
-      const b = await one(conn, `SELECT status FROM Booking WHERE booking_id=:id`, { id: req.params.id });
+      const b = await one(
+        conn,
+        `SELECT status, (SELECT COUNT(*) FROM BoardingRecord WHERE booking_id=:id) boarded
+         FROM Booking WHERE booking_id=:id`,
+        { id: req.params.id }
+      );
       if (!b) return res.status(404).json({ message: "ไม่พบการจอง" });
       if (b.STATUS !== "booked") return res.status(400).json({ message: "ยกเลิกได้เฉพาะสถานะจองแล้ว" });
+      if (b.BOARDED > 0) return res.status(400).json({ message: "ขึ้นรถแล้ว ไม่สามารถยกเลิกได้" });
       await q(conn, `UPDATE Booking SET status='cancelled' WHERE booking_id=:id`, { id: req.params.id });
       res.json({ message: "ยกเลิกการจองแล้ว", booking_id: req.params.id });
     });

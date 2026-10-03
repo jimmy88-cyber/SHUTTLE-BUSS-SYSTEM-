@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>การจอง | Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container">
+      <div class="navbar-brand">🚌 <span>Shuttle</span> Admin</div>
+      <div class="user-info" id="user-display"></div>
+    </div>
+  </nav>
+  <div class="admin-layout">
+    <aside class="sidebar"><ul class="sidebar-menu" id="sidebar-menu"></ul></aside>
+    <main class="main-content">
+      <div class="page-header" style="padding-top:0;"><h1>จัดการการจอง</h1></div>
+      <div class="card">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>รหัส</th><th>ผู้ใช้</th><th>รอบ</th><th>ขึ้น→ลง</th><th>ที่นั่ง</th><th>จองเมื่อ</th><th>สถานะ</th><th>QR</th></tr>
+            </thead>
+            <tbody id="bk-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="../js/data.js"></script>
+  <script src="../js/admin-common.js"></script>
+  <script>
+    window.initAdminPage('bookings');
+    window.checkPageRight(4);
+    document.getElementById('bk-table').innerHTML = window.BOOKINGS.map(b => {
+      const u = window.USERS.find(x => x.code === b.user);
+      return `<tr>
+        <td><strong>${b.code}</strong></td>
+        <td>${u ? u.first + ' ' + u.last : b.user}</td>
+        <td>${b.trip}</td>
+        <td>${window.getStopName(b.pickup)} → ${window.getStopName(b.dropoff)}</td>
+        <td>${b.seats}</td>
+        <td>${b.bookedAt}</td>
+        <td><span class="badge badge-${b.status}">${b.status}</span></td>
+        <td style="font-size:0.75rem;font-family:monospace">${b.qr||'—'}</td>
+      </tr>`;
+    }).join('');
+  </script>
+</body>
+</html>
