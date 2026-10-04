@@ -1,134 +1,277 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { api } from '../../api/client';
-import { getUser, clearUser } from '../../api/auth';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { api } from "../../api/client";
+import { getUser, clearUser } from "../../api/auth";
+import DriverNav from "../../components/DriverNav";
+
+function timeOnly(iso) {
+  if (!iso) return "--:--";
+  return new Date(iso).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+}
 
 export default function DriverScan() {
   const user = getUser();
   const navigate = useNavigate();
-  const [qr, setQr] = useState('');
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
+  const [qr, setQr] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState('');
+  const [trips, setTrips] = useState([]);
+  const [recent, setRecent] = useState([]);
+  const [camOn, setCamOn] = useState(false);
+  const [clk, setClk] = useState(() =>
+    new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+  );
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const inputRef = useRef(null);
 
-  if (!user) {
-    navigate('/');
-    return null;
+  useEffect(() => {
+    if (!user) {
+      navigate("/");
+      return;
+    }
+    api.getSchedules({ driver_id: user.user_id }).then(setTrips).catch(console.error);
+    loadRecent();
+    const t = setInterval(() => {
+      setClk(new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }));
+    }, 30000);
+    return () => {
+      clearInterval(t);
+      stopCam();
+    };
+  }, []);
+
+  const activeTrip = useMemo(
+    () => trips.find((t) => t.status === "in_progress") || null,
+    [trips]
+  );
+
+  async function loadRecent() {
+    try {
+      const all = await api.getBoarding();
+      const mine = all
+        .filter(
+          (r) =>
+            String(r.scanned_by_user?.user_id) === String(user.user_id) ||
+            String(r.scanned_by) === String(user.user_id)
+        )
+        .slice(0, 8);
+      setRecent(mine);
+    } catch {
+      setRecent([]);
+    }
   }
 
-  async function lookup() {
-    setError('');
-    setSuccess('');
-    setResult(null);
-    if (!qr.trim()) {
-      setError('กรุณาใส่รหัส QR');
+  async function stopCam() {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setCamOn(false);
+  }
+
+  async function toggleCam() {
+    if (camOn) {
+      await stopCam();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setCamOn(true);
+    } catch (e) {
+      alert("เปิดกล้องไม่ได้ — กรุณากรอกรหัสด้วยตนเอง\n" + (e.message || ""));
+    }
+  }
+
+  async function doCheckIn() {
+    setError("");
+    setSuccess("");
+    const code = qr.trim();
+    if (!code) {
+      setError("กรุณากรอกรหัสจอง หรือ QR Code");
       return;
     }
     setLoading(true);
     try {
-      const data = await api.getBookingByQr(qr.trim());
-      setResult(data);
+      let booking;
+      try {
+        booking = await api.getBookingByQr(code);
+      } catch {
+        const list = await api.getBookings(activeTrip ? { schedule_id: activeTrip.schedule_id } : {});
+        booking = list.find((b) => b.booking_id === code || b.qr_code === code);
+        if (!booking) throw new Error("ไม่พบรหัสจอง / QR นี้");
+      }
+
+      if (booking.boarded) throw new Error("รายการนี้ขึ้นรถไปแล้ว");
+      if (booking.status !== "booked") throw new Error("สถานะการจองไม่พร้อมขึ้นรถ (" + booking.status + ")");
+
+      const scheduleId = booking.schedule?.schedule_id;
+      const stopId = booking.pickup?.stop_id;
+      if (!scheduleId || !stopId) throw new Error("ข้อมูลรอบหรือจุดขึ้นไม่ครบ");
+
+      if (activeTrip && String(scheduleId) !== String(activeTrip.schedule_id)) {
+        if (!confirm("การจองนี้ไม่ใช่รอบที่กำลังวิ่ง ต้องการเช็คอินต่อหรือไม่?")) {
+          setLoading(false);
+          return;
+        }
+      }
+
+      await api.createBoarding({
+        booking_id: booking.booking_id,
+        schedule_id: scheduleId,
+        stop_id: stopId,
+        scanned_by: user.user_id,
+      });
+
+      setSuccess(
+        `✅ เช็คอินสำเร็จ · ${booking.user?.passenger_name || ""} · รหัส ${booking.booking_id} · ${booking.num_seats} ที่`
+      );
+      setQr("");
+      loadRecent();
+      // refresh seats on banner
+      api.getSchedules({ driver_id: user.user_id }).then(setTrips).catch(() => {});
+      inputRef.current?.focus();
     } catch (e) {
-      setError(e.message);
+      setError(e.message || "เช็คอินไม่สำเร็จ");
     } finally {
       setLoading(false);
     }
   }
 
-  async function confirmBoard() {
-    if (!result) return;
-    setLoading(true);
-    setError('');
-    try {
-      await api.createBoarding({
-        booking_id: result.booking_id,
-        schedule_id: result.schedule?.schedule_id,
-        stop_id: result.pickup?.stop_id,
-        scanned_by: user.user_id,
-      });
-      setSuccess('บันทึกขึ้นรถสำเร็จ');
-      setResult(null);
-      setQr('');
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
+  if (!user) return null;
 
   return (
     <div className="m-body">
       <div className="m-status">
-        <span>คนขับ</span>
+        <span>{clk}</span>
         <span>สแกน QR</span>
       </div>
+
       <header className="m-header rounded">
         <div className="row">
           <div>
-            <h1>📷 สแกนขึ้นรถ</h1>
-            <p>กรอกรหัส QR จากผู้โดยสาร</p>
+            <h1>📷 สแกน QR ขึ้นรถ</h1>
+            <p>สแกนจากผู้โดยสาร หรือกรอกรหัสจอง</p>
           </div>
-          <Link to="/driver" className="m-btn m-btn-ghost">
-            รอบรถ
-          </Link>
+          <button type="button" className="m-btn m-btn-ghost" onClick={() => navigate("/driver")}>
+            ← กลับ
+          </button>
         </div>
       </header>
+
       <div className="m-content">
-        {error && <div className="error-msg">{error}</div>}
-        {success && <div className="success-msg">{success}</div>}
+        {activeTrip ? (
+          <div className="m-card" style={{ borderLeft: "4px solid #0d9488" }}>
+            <div className="drv-card-top">
+              <div className="drv-info">
+                <div style={{ fontSize: "0.75rem", color: "#0d9488", fontWeight: 600 }}>กำลังเดินทาง</div>
+                <div style={{ fontWeight: 700, marginTop: 2 }}>
+                  รอบ {activeTrip.schedule_id} · {timeOnly(activeTrip.departure_time)} น.
+                </div>
+                <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: 2 }}>
+                  {activeTrip.route?.route_name} · {activeTrip.vehicle?.plate_number}
+                  {activeTrip.vehicle?.capacity ? ` (ตู้ ${activeTrip.vehicle.capacity} ที่)` : ""}
+                </div>
+                <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: 2 }}>
+                  ขึ้นรถแล้ว {activeTrip.seats_booked || 0} / {activeTrip.vehicle?.capacity || 0} ที่
+                </div>
+              </div>
+              <span className="m-badge m-badge-progress">กำลังวิ่ง</span>
+            </div>
+          </div>
+        ) : (
+          <div className="m-card" style={{ background: "#fffbeb", borderColor: "#fde68a" }}>
+            <div style={{ fontWeight: 600, color: "#92400e" }}>ยังไม่มีรอบที่กำลังเดินทาง</div>
+            <div style={{ fontSize: "0.85rem", color: "#a16207", marginTop: 4 }}>
+              ไปหน้ารอบรถ → เลือกรอบ → กดเริ่มเดินทาง / สแกนต่อ
+            </div>
+            <button type="button" className="m-btn m-btn-outline" style={{ marginTop: 10 }} onClick={() => navigate("/driver")}>
+              ไปหน้ารอบรถ
+            </button>
+          </div>
+        )}
+
+        {error && <div className="result-err">{error}</div>}
+        {success && <div className="result-ok">{success}</div>}
+
+        <div className="m-card" style={{ textAlign: "center" }}>
+          <div className="scan-frame">
+            {!camOn && (
+              <div className="placeholder">
+                <div className="cam-ico">📷</div>
+                <div>กล้องสแกน QR</div>
+                <div style={{ fontSize: "0.75rem", opacity: 0.6 }}>กดปุ่มด้านล่างเพื่อเปิดกล้อง</div>
+              </div>
+            )}
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              style={{ display: camOn ? "block" : "none", width: "100%", height: "100%", objectFit: "cover" }}
+            />
+            <div className="scan-corner tl" />
+            <div className="scan-corner tr" />
+            <div className="scan-corner bl" />
+            <div className="scan-corner br" />
+            {camOn && <div className="scan-line" />}
+          </div>
+
+          <button type="button" className="m-btn m-btn-primary" onClick={toggleCam}>
+            {camOn ? "ปิดกล้อง" : "เปิดกล้องสแกน"}
+          </button>
+          <p style={{ fontSize: "0.78rem", color: "#94a3b8", margin: "10px 0 0" }}>หรือกรอกรหัสจอง / QR ด้วยตนเอง</p>
+        </div>
 
         <div className="m-card">
-          <label className="m-label">รหัส QR</label>
+          <label className="m-label">รหัสจอง หรือ QR Code</label>
           <input
+            ref={inputRef}
             className="m-input"
             value={qr}
             onChange={(e) => setQr(e.target.value)}
-            placeholder="MUT-0001-XXXXXX"
+            onKeyDown={(e) => e.key === "Enter" && doCheckIn()}
+            placeholder="เช่น 01 หรือ QR-01-001"
+            autoComplete="off"
           />
-          <button className="m-btn m-btn-primary" onClick={lookup} disabled={loading}>
-            {loading ? 'กำลังค้นหา...' : 'ค้นหาการจอง'}
+          <button type="button" className="m-btn m-btn-success" onClick={doCheckIn} disabled={loading}>
+            {loading ? "กำลังบันทึก..." : "ยืนยันเช็คอิน"}
           </button>
         </div>
 
-        {result && (
-          <div className="m-card">
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>
-              {result.user?.passenger_name}
+        <div className="m-card">
+          <div className="m-card-title">เช็คอินล่าสุด</div>
+          {recent.length === 0 ? (
+            <div style={{ color: "#94a3b8", fontSize: "0.85rem", textAlign: "center", padding: "8px 0" }}>
+              ยังไม่มีรายการ
             </div>
-            <div style={{ fontSize: '0.9rem', color: '#475569' }}>
-              <div>เส้นทาง: {result.route?.route_name}</div>
-              <div>
-                เวลา:{' '}
-                {result.schedule?.departure_time
-                  ? new Date(result.schedule.departure_time).toLocaleString('th-TH')
-                  : '-'}
+          ) : (
+            recent.map((r) => (
+              <div className="m-list-item" key={r.boarding_id}>
+                <div>
+                  <b>{r.booking_id}</b> {r.passenger?.passenger_name || ""}
+                  <br />
+                  <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
+                    {r.scanned_at ? new Date(r.scanned_at).toLocaleString("th-TH") : ""} · {r.stop?.stop_name}
+                  </span>
+                </div>
+                <span className="m-badge m-badge-checked">ขึ้นแล้ว</span>
               </div>
-              <div>
-                {result.pickup?.stop_name} → {result.dropoff?.stop_name}
-              </div>
-              <div>{result.num_seats} ที่นั่ง · สถานะ {result.status}</div>
-              <div style={{ fontFamily: 'monospace', fontSize: '0.8rem', marginTop: 4 }}>
-                {result.qr_code}
-              </div>
-            </div>
-            {result.status === 'booked' ? (
-              <button
-                className="m-btn m-btn-primary"
-                style={{ marginTop: 14 }}
-                onClick={confirmBoard}
-                disabled={loading}
-              >
-                ✅ ยืนยันขึ้นรถ
-              </button>
-            ) : (
-              <div className="error-msg" style={{ marginTop: 12 }}>
-                การจองนี้ไม่สามารถขึ้นรถได้ (สถานะ: {result.status})
-              </div>
-            )}
-          </div>
-        )}
+            ))
+          )}
+        </div>
       </div>
+
+      <DriverNav />
     </div>
   );
 }
