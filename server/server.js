@@ -838,6 +838,20 @@ app.post("/api/bookings", async (req, res) => {
         return res.status(400).json({ message: "รอบนี้ไม่เปิดจอง" });
       }
 
+      // ผู้ใช้ 1 คนจองได้รวมไม่เกิน 4 ที่นั่งต่อรอบ (นับทุกการจองที่ยังไม่ยกเลิก)
+      const mine = (
+        await one(
+          conn,
+          `SELECT NVL(SUM(num_seats),0) n FROM Booking
+           WHERE user_id=:u AND schedule_id=:s AND status='booked'`,
+          { u: Number(user_id), s: schedule_id }
+        )
+      ).N;
+      if (mine >= 4) return res.status(400).json({ message: "ไม่สามารถจองได้อีก ครบ4ที่นั่งแล้ว" });
+      if (mine + seats > 4) {
+        return res.status(400).json({ message: `จองได้อีกเพียง ${4 - mine} ที่นั่ง (รอบนี้จองไว้แล้ว ${mine} ที่)` });
+      }
+
       const capacity = await capacityOf(conn, sch.VEHICLE_ID);
       const available = capacity - (await seatsBooked(conn, schedule_id));
       if (seats > available) return res.status(400).json({ message: `ที่นั่งไม่พอ (ว่าง ${available})` });
