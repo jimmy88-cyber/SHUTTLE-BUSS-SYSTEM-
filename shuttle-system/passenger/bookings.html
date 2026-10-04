@@ -24,7 +24,7 @@
       <div class="m-sheet-handle"></div>
       <h2>QR Code</h2>
       <div class="m-qr-box">
-        <div style="font-family:monospace;font-size:11px;line-height:1.15;margin-bottom:10px;">█████████████<br>█ ▄▄▄▄▄ █▀ ▄▄▄▄▄ █<br>█ █   █ ██ █   █ █<br>█ █▄▄▄█ █▀ █▄▄▄█ █<br>█▄▄▄▄▄▄▄█▄▄▄▄▄▄▄█</div>
+        <div id="qrcode" style="display:flex;justify-content:center;margin-bottom:12px;"></div>
         <strong id="qrt">QR</strong>
         <p style="font-size:0.78rem;color:#64748b;margin:6px 0 0;">แสดงให้คนขับสแกนเมื่อขึ้นรถ</p>
       </div>
@@ -37,12 +37,14 @@
     <a href="bookings.html" class="active"><span class="ico">📋</span>การจอง</a>
   </nav>
   <script src="../js/data.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
     const session = window.requireLogin('passenger');
     let f = 'all';
     try { const b = JSON.parse(localStorage.getItem('shuttle_bookings')); if (b) window.BOOKINGS = b; } catch {}
     // no_show (รอบถูกปิดแล้ว) แสดงเป็น success และนับอยู่ในกลุ่ม "เสร็จ"
     const DONE = ['checked_in', 'no_show'];
+    const isCurrentUserBooking = b => String(b.user) === String(session.userCode);
     function badge(st) {
       const m = {booked:'m-badge-booked',checked_in:'m-badge-checked',cancelled:'m-badge-cancel',no_show:'m-badge-checked'};
       const label = st === 'no_show' ? 'success' : st;
@@ -50,7 +52,7 @@
     }
     function filt(x, el) { f=x; document.querySelectorAll('.m-chip').forEach(c=>c.classList.remove('active')); el.classList.add('active'); render(); }
     function render() {
-      let list = window.BOOKINGS.filter(b => b.user === session.userCode);
+      let list = window.BOOKINGS.filter(isCurrentUserBooking);
       if (f === 'checked_in') list = list.filter(b => DONE.includes(b.status));
       else if (f !== 'all') list = list.filter(b => b.status === f);
 
@@ -101,9 +103,26 @@
         </div>`;
       }).join('') || '<div class="m-empty"><div class="big">📭</div>ไม่มีรายการ</div>';
     }
-    function qr(c) { document.getElementById('qrt').textContent=c; document.getElementById('modal').style.display='flex'; }
+    function qr(c) {
+      const container = document.getElementById('qrcode');
+      container.replaceChildren();
+      document.getElementById('qrt').textContent = c;
+      if (window.QRCode) {
+        new QRCode(container, {
+          text: c,
+          width: 220,
+          height: 220,
+          colorDark: '#0f172a',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H
+        });
+      } else {
+        container.textContent = 'โหลดตัวสร้าง QR ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต';
+      }
+      document.getElementById('modal').style.display = 'flex';
+    }
     function cancelTrip(tripCode) {
-      const items = window.BOOKINGS.filter(b => b.user === session.userCode && b.trip === tripCode && b.status === 'booked');
+      const items = window.BOOKINGS.filter(b => isCurrentUserBooking(b) && b.trip === tripCode && b.status === 'booked');
       if (!items.length) return;
       if (!confirm('ยกเลิกการจองรอบ ' + tripCode + ' ทั้งหมด (' + items.length + ' รายการ)?\nที่นั่งจะว่างกลับ')) return;
       items.forEach(b => b.status = 'cancelled');

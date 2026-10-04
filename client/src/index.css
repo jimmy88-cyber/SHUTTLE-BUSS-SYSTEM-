@@ -1376,3 +1376,24 @@ body { font-family: 'Sarabun', 'Segoe UI', Tahoma, sans-serif; }
 .drv-card-top .m-badge {
   margin-top: 2px;
 }
+
+/* ===== หน้าจองรถ (ตามดีไซน์ shuttle-system/passenger/book.html) ===== */
+.book-page .m-select:disabled {
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+.passenger-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.passenger-card .p-title {
+  font-weight: 700;
+  font-size: 0.88rem;
+  margin-bottom: 8px;
+  color: #0f766e;
+}

@@ -806,9 +806,22 @@ app.get("/api/bookings", async (req, res) => {
 app.get("/api/bookings/by-qr/:qr", async (req, res) => {
   try {
     await withDb(async (conn) => {
-      const row = await one(conn, BOOKING_SQL + ` AND Booking.qr_code = :qr`, { qr: req.params.qr });
-      if (!row) return res.status(404).json({ message: "ไม่พบ QR นี้" });
-      res.json(mapBooking(row));
+      const seed = await one(
+        conn,
+        BOOKING_SQL + ` AND (Booking.qr_code = :qr OR Booking.booking_id = :qr)
+                        AND Booking.status IN ('booked', 'checked_in')`,
+        { qr: req.params.qr }
+      );
+      if (!seed) return res.status(404).json({ message: "ไม่พบ QR นี้" });
+      const rows = await all(
+        conn,
+        BOOKING_SQL + ` AND Booking.user_id = :user_id
+                        AND Booking.schedule_id = :schedule_id
+                        AND Booking.status IN ('booked', 'checked_in')
+                        ORDER BY Booking.booking_id`,
+        { user_id: seed.USER_ID, schedule_id: seed.SCHEDULE_ID }
+      );
+      res.json({ bookings: rows.map(mapBooking) });
     });
   } catch (e) {
     err(res, e);
@@ -831,11 +844,26 @@ app.post("/api/bookings", async (req, res) => {
     if (drops.includes(pickup)) return res.status(400).json({ message: "จุดขึ้น–ลงต้องต่างกัน" });
 
     await withDb(async (conn) => {
+      await q(conn, `SELECT schedule_id FROM Schedule WHERE schedule_id=:id FOR UPDATE`, { id: schedule_id });
       const sch = await one(conn, SCHEDULE_SQL + ` AND Schedule.schedule_id = :id`, { id: schedule_id });
       if (!sch) return res.status(404).json({ message: "ไม่พบรอบรถ" });
       if (sch.STATUS === "completed") return res.status(400).json({ message: "รอบนี้ปิดรอบการจองแล้ว" });
       if (!["planned", "in_progress"].includes(sch.STATUS)) {
         return res.status(400).json({ message: "รอบนี้ไม่เปิดจอง" });
+      }
+
+      // ผู้ใช้ 1 คนจองได้รวมไม่เกิน 4 ที่นั่งต่อรอบ (นับทุกการจองที่ยังไม่ยกเลิก)
+      const mine = (
+        await one(
+          conn,
+          `SELECT NVL(SUM(num_seats),0) n FROM Booking
+           WHERE user_id=:u AND schedule_id=:s AND status='booked'`,
+          { u: Number(user_id), s: schedule_id }
+        )
+      ).N;
+      if (mine >= 4) return res.status(400).json({ message: "ไม่สามารถจองได้อีก ครบ4ที่นั่งแล้ว" });
+      if (mine + seats > 4) {
+        return res.status(400).json({ message: `จองได้อีกเพียง ${4 - mine} ที่นั่ง (รอบนี้จองไว้แล้ว ${mine} ที่)` });
       }
 
       const capacity = await capacityOf(conn, sch.VEHICLE_ID);
@@ -854,11 +882,25 @@ app.post("/api/bookings", async (req, res) => {
 
       const next = await one(conn, `SELECT NVL(MAX(TO_NUMBER(booking_id)),0)+1 id FROM Booking`);
       const bookings = [];
+      const existingQr = await one(
+        conn,
+        `SELECT MAX(qr_code) qr_code FROM Booking
+         WHERE user_id=:user_id AND schedule_id=:schedule_id
+           AND status IN ('booked', 'checked_in')`,
+        { user_id: Number(user_id), schedule_id }
+      );
+      const qr_code = existingQr.QR_CODE || `MUT-${Number(user_id)}-${schedule_id}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
       let n = next.ID;
       try {
+        await q(
+          conn,
+          `UPDATE Booking SET qr_code=:qr_code
+           WHERE user_id=:user_id AND schedule_id=:schedule_id
+             AND status IN ('booked', 'checked_in')`,
+          { qr_code, user_id: Number(user_id), schedule_id }
+        );
         for (const [dropoff, count] of groups) {
           const booking_id = String(n++).padStart(4, "0");
-          const qr_code = `MUT-${booking_id}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
           await conn.execute(
             `INSERT INTO Booking (booking_id,user_id,schedule_id,pickup_stop_id,dropoff_stop_id,num_seats,status,qr_code,booked_at)
              VALUES (:booking_id,:user_id,:schedule_id,:pickup,:dropoff,:num_seats,'booked',:qr_code,SYSTIMESTAMP)`,
