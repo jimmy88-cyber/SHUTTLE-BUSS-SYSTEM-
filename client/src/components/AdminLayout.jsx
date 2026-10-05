@@ -1,26 +1,57 @@
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { getUser, clearUser } from "../api/auth";
+import { getPermissionBits } from "../permissions";
+import DriverNav from "./DriverNav";
 
 const MENU = [
-  { path: "/admin", label: "📊 แดชบอร์ด", exact: true },
-  { path: "/admin/vehicles", label: "🚌 จัดการรถและประเภท" },
-  { path: "/admin/routes", label: "🗺️ เส้นทาง" },
-  { path: "/admin/trips", label: "📅 รอบรถ" },
-  { path: "/admin/bookings", label: "🎫 การจอง" },
-  { path: "/admin/users", label: "🧑‍🎓 ผู้ใช้บริการ" },
-  { path: "/admin/employees", label: "👥 พนักงาน" },
-  { path: "/admin/boarding", label: "✅ ขึ้นรถ" },
-  { path: "/admin/reports", label: "📈 รายงาน" },
+  { path: "/admin", label: "📊 แดชบอร์ด", exact: true, bit: 0 },
+  { path: "/admin/vehicles", label: "🚌 จัดการรถและประเภท", bit: 1 },
+  { path: "/admin/routes", label: "🗺️ เส้นทาง", bit: 2 },
+  { path: "/admin/trips", label: "📅 รอบรถ", bit: 3 },
+  { path: "/admin/bookings", label: "🎫 การจอง", bit: 4 },
+  { path: "/admin/users", label: "🧑‍🎓 ผู้ใช้บริการ", bit: 5 },
+  { path: "/admin/employees", label: "👥 พนักงาน", bit: 6 },
+  { path: "/admin/boarding", label: "✅ ขึ้นรถ", bit: 7 },
+  { path: "/admin/reports", label: "📈 รายงาน", bit: 0 },
+  { path: "/home", label: "👤 หน้าผู้ใช้บริการ", bit: 8 },
+  { path: "/driver", label: "🚌 หน้าคนขับ", bit: 9, exact: true },
 ];
 
 export default function AdminLayout({ title, subtitle, children }) {
-  const user = getUser();
+  const [user, setUser] = useState(getUser);
   const navigate = useNavigate();
   const location = useLocation();
 
+  useEffect(() => {
+    function refreshUser() {
+      setUser(getUser());
+    }
+    window.addEventListener("shuttle-user-change", refreshUser);
+    return () => window.removeEventListener("shuttle-user-change", refreshUser);
+  }, []);
+
   if (!user) {
-    navigate("/");
-    return null;
+    return <Navigate to="/" replace />;
+  }
+
+  const isDriver = String(user.position_id || "").padStart(2, "0") === "03";
+  const permission = getPermissionBits(user.permission, user.position_id);
+  function hasAccess(item) {
+    if (item.path === "/driver") {
+      return permission[9] === "1" && (permission[3] === "1" || permission[7] === "1");
+    }
+    return permission[item.bit] === "1";
+  }
+
+  const currentPage = MENU.find((item) =>
+    item.exact
+      ? location.pathname === item.path
+      : location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)
+  );
+  if (currentPage && !hasAccess(currentPage)) {
+    const firstAllowedPage = MENU.find(hasAccess);
+    return <Navigate to={firstAllowedPage?.path || "/"} replace />;
   }
 
   function logout() {
@@ -30,12 +61,13 @@ export default function AdminLayout({ title, subtitle, children }) {
   }
 
   function isActive(item) {
-    if (item.exact) return location.pathname === item.path;
-    return location.pathname.startsWith(item.path);
+    return item.exact
+      ? location.pathname === item.path
+      : location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
   }
 
   return (
-    <div className="admin-shell">
+    <div className={`admin-shell${isDriver ? " driver-admin-shell" : ""}`}>
       <nav className="admin-navbar">
         <div className="admin-navbar-inner">
           <div className="admin-brand">
@@ -63,7 +95,7 @@ export default function AdminLayout({ title, subtitle, children }) {
       <div className="admin-body">
         <aside className="admin-sidebar">
           <ul className="sidebar-menu">
-            {MENU.map((m) => (
+            {MENU.filter(hasAccess).map((m) => (
               <li key={m.path}>
                 <Link to={m.path} className={isActive(m) ? "active" : ""}>
                   {m.label}
@@ -82,6 +114,7 @@ export default function AdminLayout({ title, subtitle, children }) {
           {children}
         </main>
       </div>
+      {isDriver && <DriverNav />}
     </div>
   );
 }

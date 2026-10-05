@@ -22,8 +22,51 @@ export default function AdminBookings() {
 
   return (
     <AdminLayout title="การจอง" subtitle="รายการจองทั้งหมด">
-      <div className="admin-card">
-        <table className="admin-table">
+      <div className="admin-card admin-bookings-card">
+        <div className="driver-booking-cards">
+          {list.map((b) => (
+            <article className="driver-booking-card" key={b.booking_id}>
+              <div className="driver-booking-card-top">
+                <div>
+                  <span className="driver-booking-id">#{b.booking_id}</span>
+                  <strong>{b.user?.passenger_name || b.user?.user_id}</strong>
+                </div>
+                <span className={`m-badge ${b.status === 'booked' ? 'm-badge-booked' : 'm-badge-cancelled'}`}>
+                  {b.status}
+                </span>
+              </div>
+              <div className="driver-booking-route">
+                <span>{b.pickup?.stop_name || '-'}</span>
+                <span className="driver-booking-arrow">→</span>
+                <span>{b.dropoff?.stop_name || '-'}</span>
+              </div>
+              <div className="driver-booking-meta">
+                <div>
+                  <span>เส้นทาง</span>
+                  <strong>{b.route?.route_name || '-'}</strong>
+                </div>
+                <div>
+                  <span>เวลาเดินทาง</span>
+                  <strong>
+                    {b.schedule?.departure_time
+                      ? new Date(b.schedule.departure_time).toLocaleString('th-TH')
+                      : '-'}
+                  </strong>
+                </div>
+                <div>
+                  <span>ที่นั่ง</span>
+                  <strong>{b.num_seats}</strong>
+                </div>
+              </div>
+              {b.status === 'booked' && (
+                <button className="btn-danger-sm driver-booking-cancel" onClick={() => cancel(b.booking_id)}>
+                  ยกเลิกการจอง
+                </button>
+              )}
+            </article>
+          ))}
+        </div>
+        <table className="admin-table driver-booking-table">
           <thead>
             <tr>
               <th>รหัส</th>

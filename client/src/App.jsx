@@ -1,4 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { getUser } from "./api/auth";
+import { getFirstPermittedPath, getPermissionBits } from "./permissions";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/passenger/Home";
@@ -17,6 +19,16 @@ import AdminBoarding from "./pages/admin/AdminBoarding";
 import AdminReports from "./pages/admin/AdminReports";
 import "./index.css";
 
+function PermissionRoute({ bit, requiredBits = [], children, allowPassenger = false }) {
+  const user = getUser();
+  if (!user) return <Navigate to="/" replace />;
+  if (allowPassenger && user.user_type === "passenger") return children;
+
+  const permission = getPermissionBits(user.permission, user.position_id);
+  if ([bit, ...requiredBits].every((index) => permission[index] === "1")) return children;
+  return <Navigate to={getFirstPermittedPath(user)} replace />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -24,12 +36,12 @@ export default function App() {
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        <Route path="/home" element={<Home />} />
-        <Route path="/book" element={<Book />} />
-        <Route path="/bookings" element={<Bookings />} />
+        <Route path="/home" element={<PermissionRoute bit={8} allowPassenger><Home /></PermissionRoute>} />
+        <Route path="/book" element={<PermissionRoute bit={8} allowPassenger><Book /></PermissionRoute>} />
+        <Route path="/bookings" element={<PermissionRoute bit={8} allowPassenger><Bookings /></PermissionRoute>} />
 
-        <Route path="/driver" element={<Driver />} />
-        <Route path="/driver/scan" element={<DriverScan />} />
+        <Route path="/driver" element={<PermissionRoute bit={9} requiredBits={[3]}><Driver /></PermissionRoute>} />
+        <Route path="/driver/scan" element={<PermissionRoute bit={9} requiredBits={[7]}><DriverScan /></PermissionRoute>} />
 
         <Route path="/admin" element={<Admin />} />
         <Route path="/admin/vehicles" element={<AdminVehicles />} />

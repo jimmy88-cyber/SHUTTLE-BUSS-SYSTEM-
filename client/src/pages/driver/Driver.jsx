@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { getUser, clearUser } from "../../api/auth";
+import { getPermissionBits } from "../../permissions";
 import DriverNav from "../../components/DriverNav";
 
 function timeOnly(iso) {
@@ -27,6 +28,7 @@ function statusLabel(status) {
 
 export default function Driver() {
   const user = getUser();
+  const canScan = getPermissionBits(user?.permission, user?.position_id)[7] === "1";
   const navigate = useNavigate();
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -133,7 +135,7 @@ export default function Driver() {
   if (selected) {
     const st = statusLabel(selected.status);
     return (
-      <div className="m-body">
+      <div className="m-body driver-app">
         <div className="m-status">
           <span>{clk}</span>
           <span>รายละเอียด</span>
@@ -211,7 +213,7 @@ export default function Driver() {
           )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
-            {(selected.status === "in_progress" || selected.status === "planned") && (
+            {canScan && (selected.status === "in_progress" || selected.status === "planned") && (
               <button
                 type="button"
                 className="m-btn m-btn-primary"
@@ -276,7 +278,7 @@ export default function Driver() {
 
   /* ========== หน้ารายการรอบ ========== */
   return (
-    <div className="m-body">
+    <div className="m-body driver-app">
       <div className="m-status">
         <span>{clk}</span>
         <span>Driver</span>

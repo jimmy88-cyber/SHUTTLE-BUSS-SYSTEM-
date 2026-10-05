@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../api/client';
-import { saveUser } from '../api/auth';
+import { clearUser, saveUser } from '../api/auth';
+import { getFirstPermittedPath } from '../permissions';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -16,11 +17,14 @@ export default function Login() {
     setLoading(true);
     try {
       const data = await api.login(username, password);
+      const destination = getFirstPermittedPath(data.user);
+      if (destination === '/') {
+        clearUser();
+        setError('บัญชีนี้ยังไม่ได้รับสิทธิ์เข้าใช้งาน กรุณาติดต่อผู้ดูแลระบบ');
+        return;
+      }
       saveUser(data.user);
-      const u = data.user;
-      if (u.position_id === '01') navigate('/admin');
-      else if (u.position_id === '03') navigate('/driver');
-      else navigate('/home');
+      navigate(destination);
     } catch (err) {
       setError(err.message);
     } finally {

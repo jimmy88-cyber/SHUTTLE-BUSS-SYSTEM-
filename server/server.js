@@ -20,6 +20,8 @@ const dbConfig = {
     `${process.env.DB_HOST}:${process.env.DB_PORT || 1521}/${process.env.DB_SERVICE}`,
 };
 
+const PERMISSION_COUNT = 10;
+
 // ---------- helpers ----------
 async function withDb(fn) {
   const conn = await oracledb.getConnection(dbConfig);
@@ -33,6 +35,44 @@ async function withDb(fn) {
 const q = (conn, sql, binds = {}) => conn.execute(sql, binds);
 const one = async (conn, sql, binds) => (await q(conn, sql, binds)).rows[0] || null;
 const all = async (conn, sql, binds) => (await q(conn, sql, binds)).rows;
+
+function normalizePermission(permission, positionId) {
+  const value = String(permission || "").trim();
+  if (new RegExp(`^[01]{${PERMISSION_COUNT}}$`).test(value)) return value;
+  if (/^[01]{14}$/.test(value)) {
+    return [
+      value[0] === "1" || value[8] === "1" ? "1" : "0",
+      value.slice(1, 8),
+      value[9] === "1" || value[10] === "1" || value[11] === "1" ? "1" : "0",
+      value[12] === "1" || value[13] === "1" ? "1" : "0",
+    ].join("");
+  }
+  if (/^[01]{11}$/.test(value)) {
+    return [
+      value[0] === "1" || value[8] === "1" ? "1" : "0",
+      value.slice(1, 8),
+      value[9],
+      value[10],
+    ].join("");
+  }
+  if (/^[01]{8}$/.test(value)) {
+    return `${value}${value[2] === "1" || value[4] === "1" ? "1" : "0"}${value[3]}`;
+  }
+  if (!/^[01]{0,6}$/.test(value)) throw new Error("รหัสสิทธิ์ต้องเป็นเลข 0 หรือ 1 จำนวน 10 หลัก");
+
+  const old = value.padEnd(6, "0");
+  const isDriver = String(positionId || "").padStart(2, "0") === "03";
+  return [
+    old[0], old[1], old[2], old[3], old[4], old[4], old[5], old[5],
+    "0",
+    isDriver ? "1" : "0",
+  ].join("");
+}
+
+function isValidPermission(permission) {
+  const value = String(permission || "").trim();
+  return /^(?:[01]{0,6}|[01]{8}|[01]{10}|[01]{11}|[01]{14})$/.test(value);
+}
 
 function iso(d) {
   return d ? new Date(d).toISOString() : null;
@@ -195,7 +235,7 @@ app.post("/api/login", async (req, res) => {
           department_id: row.DEPARTMENT_ID,
           position_id: row.POSITION_ID,
           position_name: row.POSITION_NAME || (row.USER_TYPE === "passenger" ? "ผู้ใช้บริการ" : ""),
-          permission: row.PERMISSION || "000000",
+          permission: normalizePermission(row.PERMISSION, row.POSITION_ID),
         },
       });
     });
@@ -510,7 +550,11 @@ app.get("/api/positions", async (_req, res) => {
   try {
     await withDb(async (conn) => {
       const rows = await all(conn, `SELECT position_id, name, permission FROM Position ORDER BY position_id`);
-      res.json(rows.map((r) => ({ position_id: r.POSITION_ID, name: r.NAME, permission: r.PERMISSION })));
+      res.json(rows.map((r) => ({
+        position_id: r.POSITION_ID,
+        name: r.NAME,
+        permission: normalizePermission(r.PERMISSION, r.POSITION_ID),
+      })));
     });
   } catch (e) {
     err(res, e);
@@ -569,11 +613,15 @@ app.post("/api/positions", async (req, res) => {
   try {
     const { position_id, name, permission } = req.body;
     if (!position_id || !name) return res.status(400).json({ message: "ข้อมูลไม่ครบ" });
+    if (!isValidPermission(permission)) {
+      return res.status(400).json({ message: "รหัสสิทธิ์ต้องมี 10 หลัก และใช้เฉพาะ 0 หรือ 1" });
+    }
+    const normalizedPermission = normalizePermission(permission, position_id);
     await withDb(async (conn) => {
       await q(
         conn,
         `INSERT INTO Position (position_id, name, permission) VALUES (:position_id, :name, :permission)`,
-        { position_id, name, permission: permission || "000000" }
+        { position_id, name, permission: normalizedPermission }
       );
       res.status(201).json({ message: "เพิ่มตำแหน่งสำเร็จ" });
     });
@@ -586,11 +634,15 @@ app.put("/api/positions/:id", async (req, res) => {
   try {
     const { name, permission } = req.body;
     if (!name) return res.status(400).json({ message: "กรุณาระบุชื่อตำแหน่ง" });
+    if (!isValidPermission(permission)) {
+      return res.status(400).json({ message: "รหัสสิทธิ์ต้องมี 10 หลัก และใช้เฉพาะ 0 หรือ 1" });
+    }
+    const normalizedPermission = normalizePermission(permission, req.params.id);
     await withDb(async (conn) => {
       await q(
         conn,
         `UPDATE Position SET name = :name, permission = :permission WHERE position_id = :id`,
-        { name, permission: permission || "000000", id: req.params.id }
+        { name, permission: normalizedPermission, id: req.params.id }
       );
       res.json({ message: "แก้ไขตำแหน่งสำเร็จ" });
     });
@@ -1118,7 +1170,7 @@ app.get("/api/users", async (req, res) => {
           position: {
             position_id: r.POSITION_ID,
             position_name: r.POSITION_NAME,
-            permission: r.PERMISSION,
+            permission: normalizePermission(r.PERMISSION, r.POSITION_ID),
           },
         }))
       );

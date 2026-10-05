@@ -146,8 +146,6 @@ export default function AdminRoutes() {
     }
   }
 
-  const selectedRoute = list.find((r) => r.route_id === editorRouteId);
-
   return (
     <AdminLayout title="เส้นทาง" subtitle="รายการเส้นทาง + แก้ไขจุดจอดแบบ list">
       {error && <div className="error-msg">{error}</div>}
@@ -192,7 +190,37 @@ export default function AdminRoutes() {
       </div>
 
       <div className="admin-card">
-        <table className="admin-table">
+        <div className="driver-route-cards">
+          {list.map((r) => (
+            <article className="driver-route-card" key={r.route_id}>
+              <div className="driver-route-card-header">
+                <div>
+                  <span className="driver-route-id">เส้นทาง {r.route_id}</span>
+                  <h3>{r.route_name}</h3>
+                </div>
+                <span className="driver-route-duration">{r.total_minutes} นาที</span>
+              </div>
+              <div className="driver-route-stops">
+                <span className="driver-route-section-label">จุดจอด</span>
+                {(r.stops || []).length ? (
+                  <ol>
+                    {r.stops.map((stop, index) => (
+                      <li key={`${r.route_id}-${stop.stop_id}-${index}`}>{stop.stop_name}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p>ยังไม่มีจุดจอด</p>
+                )}
+              </div>
+              <div className="driver-route-actions">
+                <button className="btn-edit-sm" onClick={() => openStopsEditor(r)}>จัดการจุดจอด</button>
+                <button className="btn-edit-sm" onClick={() => startEdit(r)}>แก้ไข</button>
+                <button className="btn-danger-sm" onClick={() => remove(r.route_id)}>ลบ</button>
+              </div>
+            </article>
+          ))}
+        </div>
+        <table className="admin-table driver-route-table">
           <thead>
             <tr>
               <th>รหัส</th>

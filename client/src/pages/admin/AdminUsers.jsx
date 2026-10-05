@@ -98,7 +98,7 @@ export default function AdminUsers() {
             + เพิ่มผู้ใช้
           </button>
         </div>
-        <div className="table-wrapper">
+        <div className="table-wrapper driver-user-table">
           <table>
             <thead>
               <tr>
@@ -132,6 +132,34 @@ export default function AdminUsers() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="driver-user-cards">
+          {list.map((u) => (
+            <article className="driver-user-card" key={u.user_id}>
+              <div className="driver-user-card-top">
+                <span className="driver-user-id">ID {u.user_id}</span>
+                <span className="driver-user-name">{u.first_name} {u.last_name}</span>
+              </div>
+              <div className="driver-user-details">
+                <div>
+                  <span>Username</span>
+                  <strong>{u.username}</strong>
+                </div>
+                <div>
+                  <span>อีเมล</span>
+                  <strong>{u.email || "-"}</strong>
+                </div>
+              </div>
+              <div className="driver-user-actions">
+                <button type="button" className="btn-edit-sm" onClick={() => openEdit(u)}>
+                  แก้ไข
+                </button>
+                <button type="button" className="btn-danger-sm" onClick={() => remove(u.user_id)}>
+                  ลบ
+                </button>
+              </div>
+            </article>
+          ))}
         </div>
         {list.length === 0 && <div className="m-empty">ยังไม่มีผู้ใช้บริการ</div>}
       </div>

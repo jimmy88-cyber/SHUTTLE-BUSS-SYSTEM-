@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { getUser, clearUser } from "../../api/auth";
+import { getPermissionBits } from "../../permissions";
 import DriverNav from "../../components/DriverNav";
 
 function timeOnly(iso) {
@@ -11,6 +12,7 @@ function timeOnly(iso) {
 
 export default function DriverScan() {
   const user = getUser();
+  const canViewTrips = getPermissionBits(user?.permission, user?.position_id)[3] === "1";
   const navigate = useNavigate();
   const [qr, setQr] = useState("");
   const [error, setError] = useState("");
@@ -154,7 +156,7 @@ export default function DriverScan() {
   if (!user) return null;
 
   return (
-    <div className="m-body">
+    <div className="m-body driver-app">
       <div className="m-status">
         <span>{clk}</span>
         <span>สแกน QR</span>
@@ -166,9 +168,11 @@ export default function DriverScan() {
             <h1>📷 สแกน QR ขึ้นรถ</h1>
             <p>สแกนจากผู้โดยสาร หรือกรอกรหัสจอง</p>
           </div>
-          <button type="button" className="m-btn m-btn-ghost" onClick={() => navigate("/driver")}>
-            ← กลับ
-          </button>
+          {canViewTrips && (
+            <button type="button" className="m-btn m-btn-ghost" onClick={() => navigate("/driver")}>
+              ← กลับ
+            </button>
+          )}
         </div>
       </header>
 
@@ -196,11 +200,15 @@ export default function DriverScan() {
           <div className="m-card" style={{ background: "#fffbeb", borderColor: "#fde68a" }}>
             <div style={{ fontWeight: 600, color: "#92400e" }}>ยังไม่มีรอบที่กำลังเดินทาง</div>
             <div style={{ fontSize: "0.85rem", color: "#a16207", marginTop: 4 }}>
-              ไปหน้ารอบรถ → เลือกรอบ → กดเริ่มเดินทาง / สแกนต่อ
+              {canViewTrips
+                ? "ไปหน้ารอบรถ → เลือกรอบ → กดเริ่มเดินทาง / สแกนต่อ"
+                : "สามารถสแกนรหัสจองได้ แต่ไม่มีสิทธิ์เข้าดูหน้ารอบรถ"}
             </div>
-            <button type="button" className="m-btn m-btn-outline" style={{ marginTop: 10 }} onClick={() => navigate("/driver")}>
-              ไปหน้ารอบรถ
-            </button>
+            {canViewTrips && (
+              <button type="button" className="m-btn m-btn-outline" style={{ marginTop: 10 }} onClick={() => navigate("/driver")}>
+                ไปหน้ารอบรถ
+              </button>
+            )}
           </div>
         )}
 

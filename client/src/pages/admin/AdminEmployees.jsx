@@ -1,27 +1,20 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
+import { getUser, saveUser } from "../../api/auth";
+import { getPermissionBits, PERMISSION_OPTIONS, PERMISSION_COUNT } from "../../permissions";
 import AdminLayout from "../../components/AdminLayout";
 
-const RIGHT_LABELS = [
-  "แดชบอร์ด",
-  "จัดการรถ",
-  "เส้นทาง",
-  "รอบรถ",
-  "จอง+ผู้ใช้",
-  "พนักงาน+ขึ้นรถ",
-];
-
-function permissionScreens(perm) {
-  const p = String(perm || "000000").padEnd(6, "0").slice(0, 6);
+function permissionScreens(perm, positionId) {
+  const p = getPermissionBits(perm, positionId);
   const names = [];
-  for (let i = 0; i < 6; i++) {
-    if (p[i] === "1") names.push(RIGHT_LABELS[i]);
+  for (let i = 0; i < PERMISSION_COUNT; i++) {
+    if (p[i] === "1") names.push(PERMISSION_OPTIONS[i].label);
   }
   return names.length ? names.join(", ") : "-";
 }
 
-function PermissionBits({ value, onChange }) {
-  const bits = String(value || "000000").padEnd(6, "0").slice(0, 6).split("");
+function PermissionBits({ value, positionId, onChange }) {
+  const bits = getPermissionBits(value, positionId).split("");
   function toggle(i) {
     const next = [...bits];
     next[i] = next[i] === "1" ? "0" : "1";
@@ -29,9 +22,9 @@ function PermissionBits({ value, onChange }) {
   }
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-      {RIGHT_LABELS.map((label, i) => (
+      {PERMISSION_OPTIONS.map((option, i) => (
         <label
-          key={label}
+          key={option.key}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -45,7 +38,7 @@ function PermissionBits({ value, onChange }) {
           }}
         >
           <input type="checkbox" checked={bits[i] === "1"} onChange={() => toggle(i)} />
-          {i + 1}. {label}
+          {i + 1}. {option.label}
         </label>
       ))}
     </div>
@@ -61,7 +54,11 @@ export default function AdminEmployees() {
 
   // modals
   const [posModal, setPosModal] = useState(false);
-  const [posForm, setPosForm] = useState({ position_id: "", name: "", permission: "000000" });
+  const [posForm, setPosForm] = useState({
+    position_id: "",
+    name: "",
+    permission: "0".repeat(PERMISSION_COUNT),
+  });
   const [posEditId, setPosEditId] = useState(null);
 
   const [deptModal, setDeptModal] = useState(false);
@@ -93,12 +90,16 @@ export default function AdminEmployees() {
   // ---- Position ----
   function openPosAdd() {
     setPosEditId(null);
-    setPosForm({ position_id: "", name: "", permission: "000000" });
+    setPosForm({ position_id: "", name: "", permission: "0".repeat(PERMISSION_COUNT) });
     setPosModal(true);
   }
   function openPosEdit(p) {
     setPosEditId(p.position_id);
-    setPosForm({ position_id: p.position_id, name: p.name, permission: p.permission || "000000" });
+    setPosForm({
+      position_id: p.position_id,
+      name: p.name,
+      permission: getPermissionBits(p.permission, p.position_id),
+    });
     setPosModal(true);
   }
   async function savePos(e) {
@@ -107,6 +108,14 @@ export default function AdminEmployees() {
     try {
       if (posEditId) {
         await api.updatePosition(posEditId, { name: posForm.name, permission: posForm.permission });
+        const user = getUser();
+        if (String(user?.position_id) === String(posEditId)) {
+          saveUser({
+            ...user,
+            position_name: posForm.name,
+            permission: posForm.permission,
+          });
+        }
       } else {
         await api.createPosition(posForm);
       }
@@ -235,7 +244,7 @@ export default function AdminEmployees() {
           <button type="button" className="btn btn-primary btn-sm" onClick={openPosAdd}>+ เพิ่มตำแหน่ง</button>
         </div>
         <p style={{ fontSize: "0.8rem", color: "#64748b", marginBottom: 12 }}>
-          สิทธิ์ 6 หลัก · ติ๊ก = 1 (เข้าถึงได้) · ไม่ติ๊ก = 0 · แก้ไขได้ตลอดเวลาไม่ fix
+          สิทธิ์ {PERMISSION_COUNT} หลัก · กำหนดสิทธิ์แต่ละหน้าจอ · ติ๊ก = 1 (เข้าถึงได้) · ไม่ติ๊ก = 0
         </p>
         <div className="table-wrapper">
           <table>
@@ -255,10 +264,12 @@ export default function AdminEmployees() {
                   <td>{p.name}</td>
                   <td>
                     <code style={{ background: "#f1f5f9", padding: "2px 8px", borderRadius: 6 }}>
-                      {p.permission || "000000"}
+                      {getPermissionBits(p.permission, p.position_id)}
                     </code>
                   </td>
-                  <td style={{ fontSize: "0.85rem", color: "#475569" }}>{permissionScreens(p.permission)}</td>
+                  <td style={{ fontSize: "0.85rem", color: "#475569" }}>
+                    {permissionScreens(p.permission, p.position_id)}
+                  </td>
                   <td>
                     <div className="actions">
                       <button type="button" className="btn-edit-sm" onClick={() => openPosEdit(p)}>แก้ไขสิทธิ์</button>
@@ -271,7 +282,9 @@ export default function AdminEmployees() {
           </table>
         </div>
         <p style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: 10 }}>
-          ● 1=แดชบอร์ด · 2=จัดการรถ · 3=เส้นทาง · 4=รอบรถ · 5=จอง+ผู้ใช้ · 6=พนักงาน+ขึ้นรถ
+          {PERMISSION_OPTIONS.map((option, index) => (
+            <span key={option.key}>● {index + 1}={option.label} · </span>
+          ))}
         </p>
       </div>
 
@@ -368,7 +381,11 @@ export default function AdminEmployees() {
               </div>
               <div className="form-group">
                 <label className="form-label">สิทธิ์เข้าถึงหน้าจอ</label>
-                <PermissionBits value={posForm.permission} onChange={(permission) => setPosForm({ ...posForm, permission })} />
+                <PermissionBits
+                  value={posForm.permission}
+                  positionId={posForm.position_id || posEditId}
+                  onChange={(permission) => setPosForm({ ...posForm, permission })}
+                />
                 <p style={{ fontSize: "0.8rem", color: "#64748b", marginTop: 8 }}>
                   รหัสสิทธิ์: <code>{posForm.permission}</code>
                 </p>
