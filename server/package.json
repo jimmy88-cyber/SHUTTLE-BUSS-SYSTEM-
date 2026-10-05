@@ -12,11 +12,13 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "nodemon": "^3.1.14",
-    "oracledb": "^7.0.1",
-    "bcryptjs": "^2.4.3"
+    "oracledb": "^7.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }

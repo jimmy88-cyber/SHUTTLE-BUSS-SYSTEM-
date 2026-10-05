@@ -140,12 +140,6 @@
       return null;
     }
 
-    function accountBooked(c) {
-      return window.BOOKINGS
-        .filter(b => String(b.user) === String(session.userCode) && b.trip === c && b.status !== 'cancelled')
-        .reduce((sum, b) => sum + Number(b.seats || 0), 0);
-    }
-
     function booked(c) {
       return window.BOOKINGS.filter(b => b.trip === c && (b.status==='booked'||b.status==='checked_in')).reduce((s,b)=>s+b.seats,0);
     }
@@ -364,12 +358,6 @@
       const drops = [...document.querySelectorAll('.dropoff-select')].map(s => +s.value);
       const r = remain(selectedTrip);
       if (seats > r) { alert('ที่นั่งไม่พอ (ว่าง '+r+')'); goStep2(); return; }
-      const accountSeats = accountBooked(selectedTrip);
-      if (accountSeats + seats > 4) {
-        alert(`จองได้ไม่เกิน 4 ที่นั่ง (จองแล้ว ${accountSeats} ที่นั่ง)`);
-        goStep2();
-        return;
-      }
 
       // QR ร่วมกันต่อคนต่อรอบ → สแกนครั้งเดียวครบทุกที่นั่งของคนนี้ในรอบนี้
       const groupQr = 'QR-' + session.userCode + '-' + selectedTrip;
