@@ -39,7 +39,7 @@ export default function Login() {
         {error && <div className="error-msg">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">ชื่อผู้ใช้</label>
+            <label className="form-label">รหัสผู้ใช้ / รหัสพนักงาน / อีเมล</label>
             <input
               type="text"
               className="form-control"

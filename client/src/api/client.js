@@ -30,6 +30,8 @@ export const api = {
   getSchedules: (p = {}) => req("/schedules" + qs(p)),
   getSchedule: (id) => req("/schedules/" + id),
   createSchedule: (body) => req("/schedules", { method: "POST", body: JSON.stringify(body) }),
+  updateSchedule: (id, body) => req("/schedules/" + id, { method: "PUT", body: JSON.stringify(body) }),
+  deleteSchedule: (id) => req("/schedules/" + id, { method: "DELETE" }),
   updateScheduleStatus: (id, status) => req(`/schedules/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
 
   getBookings: (p = {}) => req("/bookings" + qs(p)),
@@ -48,6 +50,9 @@ export const api = {
   deleteVehicleType: (id) => req("/vehicle-types/" + id, { method: "DELETE" }),
 
   getUsers: (p = {}) => req("/users" + qs(p)),
+  createUser: (body) => req("/users", { method: "POST", body: JSON.stringify(body) }),
+  updateUser: (id, body) => req("/users/" + id, { method: "PUT", body: JSON.stringify(body) }),
+  deleteUser: (id) => req("/users/" + id, { method: "DELETE" }),
   getPositions: () => req("/positions"),
   createPosition: (body) => req("/positions", { method: "POST", body: JSON.stringify(body) }),
   updatePosition: (id, body) => req("/positions/" + id, { method: "PUT", body: JSON.stringify(body) }),

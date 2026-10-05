@@ -15,7 +15,6 @@ export default function DriverScan() {
   const [qr, setQr] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [checkInResults, setCheckInResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [trips, setTrips] = useState([]);
   const [recent, setRecent] = useState([]);
@@ -97,7 +96,6 @@ export default function DriverScan() {
   async function doCheckIn() {
     setError("");
     setSuccess("");
-    setCheckInResults([]);
     const code = qr.trim();
     if (!code) {
       setError("กรุณากรอกรหัสจอง หรือ QR Code");
@@ -105,40 +103,39 @@ export default function DriverScan() {
     }
     setLoading(true);
     try {
-      const result = await api.getBookingByQr(code);
-      const bookings = result.bookings || [];
-      if (!bookings.length) throw new Error("ไม่พบรหัสจอง / QR นี้");
-
-      const scheduleId = bookings[0].schedule?.schedule_id;
-      if (!scheduleId || bookings.some((booking) => String(booking.schedule?.schedule_id) !== String(scheduleId))) {
-        throw new Error("ข้อมูลรอบการจองไม่ถูกต้อง");
+      let booking;
+      try {
+        booking = await api.getBookingByQr(code);
+      } catch {
+        const list = await api.getBookings(activeTrip ? { schedule_id: activeTrip.schedule_id } : {});
+        booking = list.find((b) => b.booking_id === code || b.qr_code === code);
+        if (!booking) throw new Error("ไม่พบรหัสจอง / QR นี้");
       }
+
+      if (booking.boarded) throw new Error("รายการนี้ขึ้นรถไปแล้ว");
+      if (booking.status !== "booked") throw new Error("สถานะการจองไม่พร้อมขึ้นรถ (" + booking.status + ")");
+
+      const scheduleId = booking.schedule?.schedule_id;
+      const stopId = booking.pickup?.stop_id;
+      if (!scheduleId || !stopId) throw new Error("ข้อมูลรอบหรือจุดขึ้นไม่ครบ");
 
       if (activeTrip && String(scheduleId) !== String(activeTrip.schedule_id)) {
         if (!confirm("การจองนี้ไม่ใช่รอบที่กำลังวิ่ง ต้องการเช็คอินต่อหรือไม่?")) {
+          setLoading(false);
           return;
         }
       }
 
-      const pending = bookings.filter((booking) => booking.status === "booked" && !booking.boarded);
-      if (!pending.length) throw new Error("การจองทั้งหมดในรอบนี้ขึ้นรถแล้ว หรือถูกยกเลิกแล้ว");
+      await api.createBoarding({
+        booking_id: booking.booking_id,
+        schedule_id: scheduleId,
+        stop_id: stopId,
+        scanned_by: user.user_id,
+      });
 
-      const checkedIn = [];
-      for (const booking of pending) {
-        const stopId = booking.pickup?.stop_id;
-        if (!stopId) throw new Error(`ไม่พบจุดขึ้นรถของรายการ ${booking.booking_id}`);
-        await api.createBoarding({
-          booking_id: booking.booking_id,
-          schedule_id: scheduleId,
-          stop_id: stopId,
-          scanned_by: user.user_id,
-        });
-        checkedIn.push(booking);
-        setCheckInResults([...bookings.filter((item) => item.status === "checked_in" || item.boarded), ...checkedIn]);
-      }
-
-      const totalSeats = pending.reduce((total, booking) => total + booking.num_seats, 0);
-      setSuccess(`✅ เช็คอินสำเร็จ ${pending.length} รายการ · รวม ${totalSeats} ที่นั่ง`);
+      setSuccess(
+        `✅ เช็คอินสำเร็จ · ${booking.user?.passenger_name || ""} · รหัส ${booking.booking_id} · ${booking.num_seats} ที่`
+      );
       setQr("");
       loadRecent();
       // refresh seats on banner
@@ -206,22 +203,6 @@ export default function DriverScan() {
 
         {error && <div className="result-err">{error}</div>}
         {success && <div className="result-ok">{success}</div>}
-        {checkInResults.length > 0 && (
-          <div className="m-card">
-            <div className="m-card-title">รายการจองในบัญชีนี้ · รอบ {checkInResults[0].schedule?.schedule_id}</div>
-            {checkInResults.map((booking) => (
-              <div className="m-list-item" key={booking.booking_id}>
-                <div>
-                  <b>#{booking.booking_id}</b> {booking.user?.passenger_name || ""}
-                  <div style={{ fontSize: "0.78rem", color: "#64748b" }}>
-                    {booking.pickup?.stop_name} → {booking.dropoff?.stop_name} · {booking.num_seats} ที่
-                  </div>
-                </div>
-                <span className="m-badge m-badge-checked">ขึ้นแล้ว</span>
-              </div>
-            ))}
-          </div>
-        )}
 
         <div className="m-card" style={{ textAlign: "center" }}>
           <div className="scan-frame">
@@ -259,7 +240,7 @@ export default function DriverScan() {
             value={qr}
             onChange={(e) => setQr(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && doCheckIn()}
-            placeholder="สแกนหรือกรอกรหัส QR ของรอบนี้"
+            placeholder="เช่น 01 หรือ QR-01-001"
             autoComplete="off"
           />
           <button type="button" className="m-btn m-btn-success" onClick={doCheckIn} disabled={loading}>

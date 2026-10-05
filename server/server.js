@@ -71,11 +71,12 @@ async function capacityOf(conn, vehicleId) {
 const SCHEDULE_SQL = `
   SELECT Schedule.schedule_id, Schedule.departure_time, Schedule.driver_id,
          Schedule.vehicle_id, Schedule.route_id, Schedule.status,
-         Route.name route_name, Route.total_minutes, Vehicle.plate_number,
+         Route.name route_name, Route.total_minutes, Vehicle.plate_number, VehicleType.name vehicle_type_name, VehicleType.capacity vehicle_capacity,
          AppUser.first_name||' '||AppUser.last_name driver_name
-  FROM Schedule, Route, Vehicle, AppUser
+  FROM Schedule, Route, Vehicle, VehicleType, AppUser
   WHERE Schedule.route_id = Route.route_id
     AND Schedule.vehicle_id = Vehicle.vehicle_id
+    AND Vehicle.vehicle_type_id = VehicleType.vehicle_type_id
     AND Schedule.driver_id = AppUser.user_id`;
 
 async function mapSchedule(conn, s) {
@@ -95,7 +96,8 @@ async function mapSchedule(conn, s) {
     vehicle: {
       vehicle_id: s.VEHICLE_ID,
       plate_number: s.PLATE_NUMBER,
-      capacity,
+      capacity: s.VEHICLE_CAPACITY || capacity,
+      type_name: s.VEHICLE_TYPE_NAME,
     },
     driver: {
       driver_id: s.DRIVER_ID,
@@ -779,6 +781,54 @@ app.patch("/api/schedules/:id/status", async (req, res) => {
   }
 });
 
+app.put("/api/schedules/:id", async (req, res) => {
+  try {
+    const { departure_time, driver_id, vehicle_id, route_id, status } = req.body;
+    if (!departure_time || !driver_id || !vehicle_id || !route_id) {
+      return res.status(400).json({ message: "ข้อมูลไม่ครบ" });
+    }
+    const dt = String(departure_time).replace("T", " ").replace(/\.\d+Z?$/, "").slice(0, 19);
+    await withDb(async (conn) => {
+      await q(
+        conn,
+        `UPDATE Schedule
+            SET departure_time = TO_TIMESTAMP(:dt,'YYYY-MM-DD HH24:MI:SS'),
+                driver_id = :driver_id,
+                vehicle_id = :vehicle_id,
+                route_id = :route_id,
+                status = :status
+          WHERE schedule_id = :id`,
+        {
+          dt,
+          driver_id: Number(driver_id),
+          vehicle_id,
+          route_id,
+          status: status || "planned",
+          id: req.params.id,
+        }
+      );
+      res.json({ message: "แก้ไขรอบรถสำเร็จ" });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+app.delete("/api/schedules/:id", async (req, res) => {
+  try {
+    await withDb(async (conn) => {
+      const id = req.params.id;
+      // ลบ boarding / booking ที่ผูกกับรอบก่อนถ้ามี (ถ้า FK บังคับ)
+      try { await q(conn, `DELETE FROM BoardingRecord WHERE schedule_id = :id`, { id }); } catch (_) {}
+      try { await q(conn, `DELETE FROM Booking WHERE schedule_id = :id`, { id }); } catch (_) {}
+      await q(conn, `DELETE FROM Schedule WHERE schedule_id = :id`, { id });
+      res.json({ message: "ลบรอบรถสำเร็จ" });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
 // ---------- BOOKINGS ----------
 app.get("/api/bookings", async (req, res) => {
   try {
@@ -806,22 +856,9 @@ app.get("/api/bookings", async (req, res) => {
 app.get("/api/bookings/by-qr/:qr", async (req, res) => {
   try {
     await withDb(async (conn) => {
-      const seed = await one(
-        conn,
-        BOOKING_SQL + ` AND (Booking.qr_code = :qr OR Booking.booking_id = :qr)
-                        AND Booking.status IN ('booked', 'checked_in')`,
-        { qr: req.params.qr }
-      );
-      if (!seed) return res.status(404).json({ message: "ไม่พบ QR นี้" });
-      const rows = await all(
-        conn,
-        BOOKING_SQL + ` AND Booking.user_id = :user_id
-                        AND Booking.schedule_id = :schedule_id
-                        AND Booking.status IN ('booked', 'checked_in')
-                        ORDER BY Booking.booking_id`,
-        { user_id: seed.USER_ID, schedule_id: seed.SCHEDULE_ID }
-      );
-      res.json({ bookings: rows.map(mapBooking) });
+      const row = await one(conn, BOOKING_SQL + ` AND Booking.qr_code = :qr`, { qr: req.params.qr });
+      if (!row) return res.status(404).json({ message: "ไม่พบ QR นี้" });
+      res.json(mapBooking(row));
     });
   } catch (e) {
     err(res, e);
@@ -844,26 +881,11 @@ app.post("/api/bookings", async (req, res) => {
     if (drops.includes(pickup)) return res.status(400).json({ message: "จุดขึ้น–ลงต้องต่างกัน" });
 
     await withDb(async (conn) => {
-      await q(conn, `SELECT schedule_id FROM Schedule WHERE schedule_id=:id FOR UPDATE`, { id: schedule_id });
       const sch = await one(conn, SCHEDULE_SQL + ` AND Schedule.schedule_id = :id`, { id: schedule_id });
       if (!sch) return res.status(404).json({ message: "ไม่พบรอบรถ" });
       if (sch.STATUS === "completed") return res.status(400).json({ message: "รอบนี้ปิดรอบการจองแล้ว" });
       if (!["planned", "in_progress"].includes(sch.STATUS)) {
         return res.status(400).json({ message: "รอบนี้ไม่เปิดจอง" });
-      }
-
-      // ผู้ใช้ 1 คนจองได้รวมไม่เกิน 4 ที่นั่งต่อรอบ (นับทุกการจองที่ยังไม่ยกเลิก)
-      const mine = (
-        await one(
-          conn,
-          `SELECT NVL(SUM(num_seats),0) n FROM Booking
-           WHERE user_id=:u AND schedule_id=:s AND status='booked'`,
-          { u: Number(user_id), s: schedule_id }
-        )
-      ).N;
-      if (mine >= 4) return res.status(400).json({ message: "ไม่สามารถจองได้อีก ครบ4ที่นั่งแล้ว" });
-      if (mine + seats > 4) {
-        return res.status(400).json({ message: `จองได้อีกเพียง ${4 - mine} ที่นั่ง (รอบนี้จองไว้แล้ว ${mine} ที่)` });
       }
 
       const capacity = await capacityOf(conn, sch.VEHICLE_ID);
@@ -882,25 +904,11 @@ app.post("/api/bookings", async (req, res) => {
 
       const next = await one(conn, `SELECT NVL(MAX(TO_NUMBER(booking_id)),0)+1 id FROM Booking`);
       const bookings = [];
-      const existingQr = await one(
-        conn,
-        `SELECT MAX(qr_code) qr_code FROM Booking
-         WHERE user_id=:user_id AND schedule_id=:schedule_id
-           AND status IN ('booked', 'checked_in')`,
-        { user_id: Number(user_id), schedule_id }
-      );
-      const qr_code = existingQr.QR_CODE || `MUT-${Number(user_id)}-${schedule_id}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
       let n = next.ID;
       try {
-        await q(
-          conn,
-          `UPDATE Booking SET qr_code=:qr_code
-           WHERE user_id=:user_id AND schedule_id=:schedule_id
-             AND status IN ('booked', 'checked_in')`,
-          { qr_code, user_id: Number(user_id), schedule_id }
-        );
         for (const [dropoff, count] of groups) {
           const booking_id = String(n++).padStart(4, "0");
+          const qr_code = `MUT-${booking_id}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
           await conn.execute(
             `INSERT INTO Booking (booking_id,user_id,schedule_id,pickup_stop_id,dropoff_stop_id,num_seats,status,qr_code,booked_at)
              VALUES (:booking_id,:user_id,:schedule_id,:pickup,:dropoff,:num_seats,'booked',:qr_code,SYSTIMESTAMP)`,
@@ -1073,6 +1081,91 @@ app.get("/api/users", async (req, res) => {
           },
         }))
       );
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+app.post("/api/users", async (req, res) => {
+  try {
+    const { username, password, first_name, last_name, email } = req.body;
+    if (!username || !first_name || !last_name) {
+      return res.status(400).json({ message: "ข้อมูลไม่ครบ" });
+    }
+    await withDb(async (conn) => {
+      if (await one(conn, `SELECT user_id FROM AppUser WHERE username = :username`, { username })) {
+        return res.status(400).json({ message: "ชื่อผู้ใช้นี้มีแล้ว" });
+      }
+      const next = await one(conn, `SELECT NVL(MAX(user_id), 0) + 1 id FROM AppUser`);
+      const hash = await bcrypt.hash(String(password || "1234"), 10);
+      await q(
+        conn,
+        `INSERT INTO AppUser (user_id, username, password, first_name, last_name, email, user_type)
+         VALUES (:id, :username, :password, :first_name, :last_name, :email, 'passenger')`,
+        {
+          id: next.ID,
+          username,
+          password: hash,
+          first_name,
+          last_name,
+          email: email || null,
+        }
+      );
+      res.status(201).json({ message: "เพิ่มผู้ใช้บริการสำเร็จ", user_id: next.ID });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+app.put("/api/users/:id", async (req, res) => {
+  try {
+    const { first_name, last_name, email, password, username } = req.body;
+    if (!first_name || !last_name) return res.status(400).json({ message: "ข้อมูลไม่ครบ" });
+    await withDb(async (conn) => {
+      if (password) {
+        const hash = await bcrypt.hash(String(password), 10);
+        await q(
+          conn,
+          `UPDATE AppUser
+              SET first_name = :first_name, last_name = :last_name, email = :email, password = :password
+            WHERE user_id = :id`,
+          {
+            first_name, last_name,
+            email: email || null,
+            password: hash,
+            id: Number(req.params.id),
+          }
+        );
+      } else {
+        await q(
+          conn,
+          `UPDATE AppUser
+              SET first_name = :first_name, last_name = :last_name, email = :email
+            WHERE user_id = :id`,
+          {
+            first_name, last_name,
+            email: email || null,
+            id: Number(req.params.id),
+          }
+        );
+      }
+      res.json({ message: "แก้ไขผู้ใช้บริการสำเร็จ" });
+    });
+  } catch (e) {
+    err(res, e);
+  }
+});
+
+app.delete("/api/users/:id", async (req, res) => {
+  try {
+    await withDb(async (conn) => {
+      const id = Number(req.params.id);
+      try { await q(conn, `DELETE FROM BoardingRecord WHERE booking_id IN (SELECT booking_id FROM Booking WHERE user_id = :id)`, { id }); } catch (_) {}
+      try { await q(conn, `DELETE FROM Booking WHERE user_id = :id`, { id }); } catch (_) {}
+      await q(conn, `DELETE FROM AppUser WHERE user_id = :id AND user_type = 'passenger'`, { id });
+      res.json({ message: "ลบผู้ใช้บริการสำเร็จ" });
     });
   } catch (e) {
     err(res, e);
