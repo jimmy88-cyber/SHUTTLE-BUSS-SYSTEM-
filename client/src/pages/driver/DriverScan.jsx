@@ -20,6 +20,7 @@ export default function DriverScan() {
   const [checkInResults, setCheckInResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [trips, setTrips] = useState([]);
+  const [tripsLoaded, setTripsLoaded] = useState(false);
   const [recent, setRecent] = useState([]);
   const [camOn, setCamOn] = useState(false);
   const [clk, setClk] = useState(() =>
@@ -34,8 +35,16 @@ export default function DriverScan() {
       navigate("/");
       return;
     }
-    api.getSchedules({ driver_id: user.user_id }).then(setTrips).catch(console.error);
-    loadRecent();
+    api
+      .getSchedules({ driver_id: user.user_id })
+      .then((data) => {
+        setTrips(data);
+        setTripsLoaded(true);
+      })
+      .catch((e) => {
+        console.error(e);
+        setTripsLoaded(true);
+      });
     const t = setInterval(() => {
       setClk(new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }));
     }, 30000);
@@ -50,14 +59,39 @@ export default function DriverScan() {
     [trips]
   );
 
+  // รอโหลดรอบเสร็จก่อน แล้วค่อยดึงเช็คอิน (กันข้อมูลเก่าแวบตอนเข้าหน้า)
+  useEffect(() => {
+    if (!tripsLoaded) return;
+    loadRecent();
+  }, [tripsLoaded, activeTrip?.schedule_id]);
+
   async function loadRecent() {
     try {
-      const all = await api.getBoarding();
+      const scheduleId = activeTrip?.schedule_id;
+
+      // ยังไม่มีรอบที่กำลังวิ่ง → ไม่แสดงรายการเก่าจากรอบอื่น
+      if (!scheduleId) {
+        setRecent([]);
+        return;
+      }
+
+      const [all, bookings] = await Promise.all([
+        api.getBoarding(),
+        api.getBookings({ schedule_id: scheduleId }),
+      ]);
+
+      const validIds = new Set(
+        bookings
+          .filter((b) => b.boarded && b.status !== "cancelled")
+          .map((b) => String(b.booking_id))
+      );
+
+      // แสดงเฉพาะเช็คอินของรอบนี้ ที่ตรงกับการจองจริง
       const mine = all
         .filter(
           (r) =>
-            String(r.scanned_by_user?.user_id) === String(user.user_id) ||
-            String(r.scanned_by) === String(user.user_id)
+            String(r.schedule_id) === String(scheduleId) &&
+            validIds.has(String(r.booking_id))
         )
         .slice(0, 8);
       setRecent(mine);
@@ -190,7 +224,8 @@ export default function DriverScan() {
                   {activeTrip.vehicle?.capacity ? ` (ตู้ ${activeTrip.vehicle.capacity} ที่)` : ""}
                 </div>
                 <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: 2 }}>
-                  ขึ้นรถแล้ว {activeTrip.seats_booked || 0} / {activeTrip.vehicle?.capacity || 0} ที่
+                  จองแล้ว {activeTrip.seats_booked || 0} / {activeTrip.vehicle?.capacity || 0} ที่
+                  {recent.length > 0 ? ` · ขึ้นแล้ว ${recent.length} คน` : ""}
                 </div>
               </div>
               <span className="m-badge m-badge-progress">กำลังวิ่ง</span>
