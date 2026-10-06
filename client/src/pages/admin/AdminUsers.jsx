@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import AdminLayout from "../../components/AdminLayout";
+import SortableHeader from "../../components/SortableHeader";
+import { useSortableRows } from "../../hooks/useSortableRows";
 
 const empty = {
   username: "",
@@ -12,6 +14,7 @@ const empty = {
 
 export default function AdminUsers() {
   const [list, setList] = useState([]);
+  const { sortedRows, sort, sortBy } = useSortableRows(list);
   const [form, setForm] = useState(empty);
   const [editId, setEditId] = useState(null);
   const [modal, setModal] = useState(false);
@@ -102,7 +105,7 @@ export default function AdminUsers() {
           <table>
             <thead>
               <tr>
-                <th>ID</th>
+                <th><SortableHeader label="ID" sortKey="user_id" sort={sort} onSort={sortBy} /></th>
                 <th>Username</th>
                 <th>ชื่อ-สกุล</th>
                 <th>อีเมล</th>
@@ -110,7 +113,7 @@ export default function AdminUsers() {
               </tr>
             </thead>
             <tbody>
-              {list.map((u) => (
+              {sortedRows.map((u) => (
                 <tr key={u.user_id}>
                   <td>{u.user_id}</td>
                   <td>{u.username}</td>
@@ -134,7 +137,7 @@ export default function AdminUsers() {
           </table>
         </div>
         <div className="driver-user-cards">
-          {list.map((u) => (
+          {sortedRows.map((u) => (
             <article className="driver-user-card" key={u.user_id}>
               <div className="driver-user-card-top">
                 <span className="driver-user-id">ID {u.user_id}</span>

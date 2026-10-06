@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import AdminLayout from "../../components/AdminLayout";
+import SortableHeader from "../../components/SortableHeader";
+import { useSortableRows } from "../../hooks/useSortableRows";
 
 const STATUS_OPTS = [
   { value: "planned", label: "รอออก (planned)" },
@@ -60,6 +62,7 @@ export default function AdminTrips() {
   const [modal, setModal] = useState(false);
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
+  const { sortedRows, sort, sortBy } = useSortableRows(list);
 
   function load() {
     api.getSchedules().then(setList).catch(console.error);
@@ -147,8 +150,8 @@ export default function AdminTrips() {
           <table>
             <thead>
               <tr>
-                <th>รหัส</th>
-                <th>เวลา</th>
+                <th><SortableHeader label="รหัส" sortKey="schedule_id" sort={sort} onSort={sortBy} /></th>
+                <th><SortableHeader label="เวลา" sortKey="departure_time" sort={sort} onSort={sortBy} /></th>
                 <th>เส้นทาง</th>
                 <th>รถ</th>
                 <th>คนขับ</th>
@@ -158,7 +161,7 @@ export default function AdminTrips() {
               </tr>
             </thead>
             <tbody>
-              {list.map((s) => (
+              {sortedRows.map((s) => (
                 <tr key={s.schedule_id}>
                   <td>{s.schedule_id}</td>
                   <td>

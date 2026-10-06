@@ -4,6 +4,8 @@ import { api } from "../../api/client";
 import { getUser } from "../../api/auth";
 import { getPermissionBits } from "../../permissions";
 import AdminLayout from "../../components/AdminLayout";
+import SortableHeader from "../../components/SortableHeader";
+import { useSortableRows } from "../../hooks/useSortableRows";
 
 export default function Admin() {
   const user = getUser();
@@ -13,6 +15,8 @@ export default function Admin() {
   const [stats, setStats] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [trips, setTrips] = useState([]);
+  const { sortedRows: sortedBookings, sort: bookingSort, sortBy: sortBookingsBy } = useSortableRows(bookings);
+  const { sortedRows: sortedTrips, sort: tripSort, sortBy: sortTripsBy } = useSortableRows(trips);
 
   useEffect(() => {
     api.getStats().then(setStats).catch(console.error);
@@ -69,7 +73,7 @@ export default function Admin() {
                 <table>
                   <thead>
                     <tr>
-                      <th>รหัส</th>
+                      <th><SortableHeader label="รหัส" sortKey="booking_id" sort={bookingSort} onSort={sortBookingsBy} /></th>
                       <th>ผู้จอง</th>
                       <th>เส้นทาง</th>
                       <th>สถานะ</th>
@@ -83,7 +87,7 @@ export default function Admin() {
                         </td>
                       </tr>
                     ) : (
-                      bookings.map((b) => (
+                      sortedBookings.map((b) => (
                         <tr key={b.booking_id}>
                           <td>{b.booking_id}</td>
                           <td>{b.user?.passenger_name || b.user?.user_id}</td>
@@ -114,8 +118,8 @@ export default function Admin() {
                 <table>
                   <thead>
                     <tr>
-                      <th>รหัส</th>
-                      <th>เวลา</th>
+                      <th><SortableHeader label="รหัส" sortKey="schedule_id" sort={tripSort} onSort={sortTripsBy} /></th>
+                      <th><SortableHeader label="เวลา" sortKey="departure_time" sort={tripSort} onSort={sortTripsBy} /></th>
                       <th>คนขับ</th>
                       <th>สถานะ</th>
                     </tr>
@@ -128,7 +132,7 @@ export default function Admin() {
                         </td>
                       </tr>
                     ) : (
-                      trips.map((t) => (
+                      sortedTrips.map((t) => (
                         <tr key={t.schedule_id}>
                           <td>{t.schedule_id}</td>
                           <td>

@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import AdminLayout from '../../components/AdminLayout';
+import SortableHeader from '../../components/SortableHeader';
+import { useSortableRows } from '../../hooks/useSortableRows';
 
 export default function AdminBookings() {
   const [list, setList] = useState([]);
+  const { sortedRows, sort, sortBy } = useSortableRows(list);
 
   function load() {
     api.getBookings().then(setList).catch(console.error);
@@ -24,7 +27,7 @@ export default function AdminBookings() {
     <AdminLayout title="การจอง" subtitle="รายการจองทั้งหมด">
       <div className="admin-card admin-bookings-card">
         <div className="driver-booking-cards">
-          {list.map((b) => (
+          {sortedRows.map((b) => (
             <article className="driver-booking-card" key={b.booking_id}>
               <div className="driver-booking-card-top">
                 <div>
@@ -69,10 +72,10 @@ export default function AdminBookings() {
         <table className="admin-table driver-booking-table">
           <thead>
             <tr>
-              <th>รหัส</th>
+              <th><SortableHeader label="รหัส" sortKey="booking_id" sort={sort} onSort={sortBy} /></th>
               <th>ผู้จอง</th>
               <th>เส้นทาง</th>
-              <th>เวลา</th>
+              <th><SortableHeader label="เวลา" sortKey="schedule.departure_time" sort={sort} onSort={sortBy} /></th>
               <th>ขึ้น → ลง</th>
               <th>ที่นั่ง</th>
               <th>สถานะ</th>
@@ -80,7 +83,7 @@ export default function AdminBookings() {
             </tr>
           </thead>
           <tbody>
-            {list.map((b) => (
+            {sortedRows.map((b) => (
               <tr key={b.booking_id}>
                 <td>{b.booking_id}</td>
                 <td>{b.user?.passenger_name || b.user?.user_id}</td>

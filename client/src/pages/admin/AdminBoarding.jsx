@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import AdminLayout from '../../components/AdminLayout';
+import SortableHeader from '../../components/SortableHeader';
+import { useSortableRows } from '../../hooks/useSortableRows';
 
 export default function AdminBoarding() {
   const [list, setList] = useState([]);
+  const { sortedRows, sort, sortBy } = useSortableRows(list);
 
   useEffect(() => {
     api.getBoarding().then(setList).catch(console.error);
@@ -15,17 +18,17 @@ export default function AdminBoarding() {
         <table className="admin-table">
           <thead>
             <tr>
-              <th>รหัส</th>
+              <th><SortableHeader label="รหัส" sortKey="boarding_id" sort={sort} onSort={sortBy} /></th>
               <th>ผู้โดยสาร</th>
               <th>การจอง</th>
               <th>รอบ</th>
               <th>จุดจอด</th>
               <th>สแกนโดย</th>
-              <th>เวลา</th>
+              <th><SortableHeader label="เวลา" sortKey="scanned_at" sort={sort} onSort={sortBy} /></th>
             </tr>
           </thead>
           <tbody>
-            {list.map((r) => (
+            {sortedRows.map((r) => (
               <tr key={r.boarding_id}>
                 <td>{r.boarding_id}</td>
                 <td>{r.passenger?.passenger_name}</td>

@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import AdminLayout from "../../components/AdminLayout";
+import SortableHeader from "../../components/SortableHeader";
+import { useSortableRows } from "../../hooks/useSortableRows";
 
 const emptyRoute = { route_id: "", route_name: "", total_minutes: "" };
 
 export default function AdminRoutes() {
   const [list, setList] = useState([]);
+  const { sortedRows, sort, sortBy } = useSortableRows(list);
   const [stopsMaster, setStopsMaster] = useState([]);
   const [form, setForm] = useState(emptyRoute);
   const [editId, setEditId] = useState(null);
@@ -191,7 +194,7 @@ export default function AdminRoutes() {
 
       <div className="admin-card">
         <div className="driver-route-cards">
-          {list.map((r) => (
+          {sortedRows.map((r) => (
             <article className="driver-route-card" key={r.route_id}>
               <div className="driver-route-card-header">
                 <div>
@@ -223,7 +226,7 @@ export default function AdminRoutes() {
         <table className="admin-table driver-route-table">
           <thead>
             <tr>
-              <th>รหัส</th>
+              <th><SortableHeader label="รหัส" sortKey="route_id" sort={sort} onSort={sortBy} /></th>
               <th>ชื่อเส้นทาง</th>
               <th>เวลารวม</th>
               <th>จุดจอด</th>
@@ -231,7 +234,7 @@ export default function AdminRoutes() {
             </tr>
           </thead>
           <tbody>
-            {list.map((r) => (
+            {sortedRows.map((r) => (
               <tr key={r.route_id}>
                 <td>{r.route_id}</td>
                 <td>{r.route_name}</td>

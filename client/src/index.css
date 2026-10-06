@@ -263,6 +263,22 @@ th {
   white-space: nowrap;
 }
 
+.table-sort-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.table-sort-button:hover,
+.table-sort-button:focus-visible {
+  color: var(--primary);
+  outline: none;
+}
+
 td {
   padding: 12px 14px;
   border-bottom: 1px solid var(--border);

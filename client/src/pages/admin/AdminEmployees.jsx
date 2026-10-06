@@ -3,6 +3,8 @@ import { api } from "../../api/client";
 import { getUser, saveUser } from "../../api/auth";
 import { getPermissionBits, PERMISSION_OPTIONS, PERMISSION_COUNT } from "../../permissions";
 import AdminLayout from "../../components/AdminLayout";
+import SortableHeader from "../../components/SortableHeader";
+import { useSortableRows } from "../../hooks/useSortableRows";
 
 function permissionScreens(perm, positionId) {
   const p = getPermissionBits(perm, positionId);
@@ -49,6 +51,9 @@ export default function AdminEmployees() {
   const [positions, setPositions] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const { sortedRows: sortedPositions, sort: positionSort, sortBy: sortPositionsBy } = useSortableRows(positions);
+  const { sortedRows: sortedDepartments, sort: departmentSort, sortBy: sortDepartmentsBy } = useSortableRows(departments);
+  const { sortedRows: sortedEmployees, sort: employeeSort, sortBy: sortEmployeesBy } = useSortableRows(employees);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
 
@@ -250,7 +255,7 @@ export default function AdminEmployees() {
           <table>
             <thead>
               <tr>
-                <th>รหัส</th>
+                <th><SortableHeader label="รหัส" sortKey="position_id" sort={positionSort} onSort={sortPositionsBy} /></th>
                 <th>ชื่อตำแหน่ง</th>
                 <th>รหัสสิทธิ์</th>
                 <th>หน้าจอที่เข้าถึง</th>
@@ -258,7 +263,7 @@ export default function AdminEmployees() {
               </tr>
             </thead>
             <tbody>
-              {positions.map((p) => (
+              {sortedPositions.map((p) => (
                 <tr key={p.position_id}>
                   <td>{p.position_id}</td>
                   <td>{p.name}</td>
@@ -298,13 +303,13 @@ export default function AdminEmployees() {
           <table>
             <thead>
               <tr>
-                <th>รหัส</th>
+                <th><SortableHeader label="รหัส" sortKey="department_id" sort={departmentSort} onSort={sortDepartmentsBy} /></th>
                 <th>ชื่อแผนก</th>
                 <th>จัดการ</th>
               </tr>
             </thead>
             <tbody>
-              {departments.map((d) => (
+              {sortedDepartments.map((d) => (
                 <tr key={d.department_id}>
                   <td>{d.department_id}</td>
                   <td>{d.name}</td>
@@ -331,7 +336,7 @@ export default function AdminEmployees() {
           <table>
             <thead>
               <tr>
-                <th>รหัส</th>
+                <th><SortableHeader label="รหัส" sortKey="username" sort={employeeSort} onSort={sortEmployeesBy} /></th>
                 <th>ชื่อ-นามสกุล</th>
                 <th>แผนก</th>
                 <th>ตำแหน่ง</th>
@@ -339,7 +344,7 @@ export default function AdminEmployees() {
               </tr>
             </thead>
             <tbody>
-              {employees.map((u) => (
+              {sortedEmployees.map((u) => (
                 <tr key={u.user_id}>
                   <td>{u.username}</td>
                   <td>

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import AdminLayout from "../../components/AdminLayout";
+import SortableHeader from "../../components/SortableHeader";
+import { useSortableRows } from "../../hooks/useSortableRows";
 
 const STATUS_OPTS = [
   { value: "available", label: "ว่าง / พร้อมใช้" },
@@ -21,6 +23,8 @@ const emptyVeh = { vehicle_id: "", plate_number: "", vehicle_type_id: "", status
 export default function AdminVehicles() {
   const [types, setTypes] = useState([]);
   const [list, setList] = useState([]);
+  const { sortedRows: sortedTypes, sort: typeSort, sortBy: sortTypesBy } = useSortableRows(types);
+  const { sortedRows: sortedVehicles, sort: vehicleSort, sortBy: sortVehiclesBy } = useSortableRows(list);
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
 
@@ -136,14 +140,14 @@ export default function AdminVehicles() {
           <table>
             <thead>
               <tr>
-                <th>รหัส</th>
+                <th><SortableHeader label="รหัส" sortKey="vehicle_type_id" sort={typeSort} onSort={sortTypesBy} /></th>
                 <th>ชื่อ</th>
                 <th>ที่นั่ง</th>
                 <th>จัดการ</th>
               </tr>
             </thead>
             <tbody>
-              {types.map((t) => (
+              {sortedTypes.map((t) => (
                 <tr key={t.vehicle_type_id}>
                   <td>{t.vehicle_type_id}</td>
                   <td>{t.name}</td>
@@ -173,7 +177,7 @@ export default function AdminVehicles() {
           <table>
             <thead>
               <tr>
-                <th>รหัส</th>
+                <th><SortableHeader label="รหัส" sortKey="vehicle_id" sort={vehicleSort} onSort={sortVehiclesBy} /></th>
                 <th>ทะเบียน</th>
                 <th>ประเภท</th>
                 <th>ที่นั่ง</th>
@@ -182,7 +186,7 @@ export default function AdminVehicles() {
               </tr>
             </thead>
             <tbody>
-              {list.map((v) => (
+              {sortedVehicles.map((v) => (
                 <tr key={v.vehicle_id}>
                   <td>{v.vehicle_id}</td>
                   <td>{v.plate_number}</td>

@@ -35,14 +35,17 @@ export default function DriverScan() {
       navigate("/");
       return;
     }
-    api.getSchedules({ driver_id: user.user_id })
+    api
+      .getSchedules({ driver_id: user.user_id })
       .then((assignedTrips) => {
         setTrips(assignedTrips);
         const currentTrip = assignedTrips.find((trip) => trip.status === "in_progress");
-        if (currentTrip) loadRecent(currentTrip.schedule_id);
-        else setRecent([]);
+        loadRecent(currentTrip?.schedule_id);
       })
-      .catch(console.error);
+      .catch((e) => {
+        console.error(e);
+        setError(e.message || "โหลดรอบรถไม่สำเร็จ");
+      });
     const t = setInterval(() => {
       setClk(new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }));
     }, 30000);
@@ -64,13 +67,22 @@ export default function DriverScan() {
       return;
     }
     try {
-      const all = await api.getBoarding();
+      const [all, bookings] = await Promise.all([
+        api.getBoarding(),
+        api.getBookings({ schedule_id: scheduleId }),
+      ]);
+
+      const validIds = new Set(
+        bookings
+          .filter((b) => b.boarded && b.status !== "cancelled")
+          .map((b) => String(b.booking_id))
+      );
+
       const mine = all
         .filter(
           (r) =>
             String(r.schedule_id) === String(scheduleId) &&
-            (String(r.scanned_by_user?.user_id) === String(user.user_id) ||
-              String(r.scanned_by) === String(user.user_id))
+            validIds.has(String(r.booking_id))
         )
         .sort((a, b) => new Date(b.scanned_at) - new Date(a.scanned_at))
         .slice(0, 8);
@@ -207,7 +219,8 @@ export default function DriverScan() {
                   {activeTrip.vehicle?.capacity ? ` (ตู้ ${activeTrip.vehicle.capacity} ที่)` : ""}
                 </div>
                 <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: 2 }}>
-                  ขึ้นรถแล้ว {activeTrip.seats_booked || 0} / {activeTrip.vehicle?.capacity || 0} ที่
+                  จองแล้ว {activeTrip.seats_booked || 0} / {activeTrip.vehicle?.capacity || 0} ที่
+                  {recent.length > 0 ? ` · ขึ้นแล้ว ${recent.length} คน` : ""}
                 </div>
               </div>
               <span className="m-badge m-badge-progress">กำลังวิ่ง</span>
