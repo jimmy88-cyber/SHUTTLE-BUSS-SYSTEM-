@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../../api/client";
-import { getUser, clearUser } from "../../api/auth";
+import { api, sortByNumericId } from "../../api/client";
+import { getUser } from "../../api/auth";
 import { getPermissionBits } from "../../permissions";
 import DriverNav from "../../components/DriverNav";
 
@@ -21,6 +21,7 @@ export default function DriverScan() {
   const [loading, setLoading] = useState(false);
   const [trips, setTrips] = useState([]);
   const [recent, setRecent] = useState([]);
+  const [recentScheduleId, setRecentScheduleId] = useState(null);
   const [camOn, setCamOn] = useState(false);
   const [clk, setClk] = useState(() =>
     new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
@@ -34,8 +35,14 @@ export default function DriverScan() {
       navigate("/");
       return;
     }
-    api.getSchedules({ driver_id: user.user_id }).then(setTrips).catch(console.error);
-    loadRecent();
+    api.getSchedules({ driver_id: user.user_id })
+      .then((assignedTrips) => {
+        setTrips(assignedTrips);
+        const currentTrip = assignedTrips.find((trip) => trip.status === "in_progress");
+        if (currentTrip) loadRecent(currentTrip.schedule_id);
+        else setRecent([]);
+      })
+      .catch(console.error);
     const t = setInterval(() => {
       setClk(new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }));
     }, 30000);
@@ -50,19 +57,29 @@ export default function DriverScan() {
     [trips]
   );
 
-  async function loadRecent() {
+  async function loadRecent(scheduleId) {
+    if (!scheduleId) {
+      setRecent([]);
+      setRecentScheduleId(null);
+      return;
+    }
     try {
       const all = await api.getBoarding();
       const mine = all
         .filter(
           (r) =>
-            String(r.scanned_by_user?.user_id) === String(user.user_id) ||
-            String(r.scanned_by) === String(user.user_id)
+            String(r.schedule_id) === String(scheduleId) &&
+            (String(r.scanned_by_user?.user_id) === String(user.user_id) ||
+              String(r.scanned_by) === String(user.user_id))
         )
+        .sort((a, b) => new Date(b.scanned_at) - new Date(a.scanned_at))
         .slice(0, 8);
-      setRecent(mine);
-    } catch {
+      setRecent(sortByNumericId(mine, "boarding_id"));
+      setRecentScheduleId(scheduleId);
+    } catch (e) {
       setRecent([]);
+      setRecentScheduleId(scheduleId);
+      setError(e.message || "โหลดรายการเช็คอินล่าสุดไม่สำเร็จ");
     }
   }
 
@@ -142,7 +159,7 @@ export default function DriverScan() {
       const totalSeats = pending.reduce((total, booking) => total + booking.num_seats, 0);
       setSuccess(`✅ เช็คอินสำเร็จ ${pending.length} รายการ · รวม ${totalSeats} ที่นั่ง`);
       setQr("");
-      loadRecent();
+      loadRecent(scheduleId);
       // refresh seats on banner
       api.getSchedules({ driver_id: user.user_id }).then(setTrips).catch(() => {});
       inputRef.current?.focus();
@@ -276,7 +293,9 @@ export default function DriverScan() {
         </div>
 
         <div className="m-card">
-          <div className="m-card-title">เช็คอินล่าสุด</div>
+          <div className="m-card-title">
+            เช็คอินล่าสุด{recentScheduleId ? ` · รอบ ${recentScheduleId}` : ""}
+          </div>
           {recent.length === 0 ? (
             <div style={{ color: "#94a3b8", fontSize: "0.85rem", textAlign: "center", padding: "8px 0" }}>
               ยังไม่มีรายการ

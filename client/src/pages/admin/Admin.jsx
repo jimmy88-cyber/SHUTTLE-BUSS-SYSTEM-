@@ -17,10 +17,18 @@ export default function Admin() {
   useEffect(() => {
     api.getStats().then(setStats).catch(console.error);
     if (canViewBookings) {
-      api.getBookings().then((b) => setBookings(b.slice(0, 5))).catch(console.error);
+      api.getBookings().then((b) => setBookings(b.slice(-5))).catch(console.error);
     }
     if (canViewTrips) {
-      api.getSchedules().then((s) => setTrips(s.slice(0, 5))).catch(console.error);
+      api.getSchedules()
+        .then((s) =>
+          setTrips(
+            [...s]
+              .sort((a, b) => new Date(a.departure_time) - new Date(b.departure_time))
+              .slice(0, 5)
+          )
+        )
+        .catch(console.error);
     }
   }, [canViewBookings, canViewTrips]);
 

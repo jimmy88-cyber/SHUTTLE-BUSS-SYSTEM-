@@ -94,7 +94,9 @@ export default function Bookings() {
     const cb = b.includes('|c|') ? 1 : 0;
     if (ca !== cb) return ca - cb;
     // ใช้งานอยู่: เรียงตามรอบ · ประวัติยกเลิก: ล่าสุดก่อน
-    return ca ? b.split('|c|')[1].localeCompare(a.split('|c|')[1]) : a.localeCompare(b);
+    return ca
+      ? b.split('|c|')[1].localeCompare(a.split('|c|')[1])
+      : a.localeCompare(b, undefined, { numeric: true });
   });
 
   return (
