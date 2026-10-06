@@ -40,8 +40,8 @@ export default function App() {
         <Route path="/book" element={<PermissionRoute bit={8} allowPassenger><Book /></PermissionRoute>} />
         <Route path="/bookings" element={<PermissionRoute bit={8} allowPassenger><Bookings /></PermissionRoute>} />
 
-        <Route path="/driver" element={<PermissionRoute bit={9} requiredBits={[3]}><Driver /></PermissionRoute>} />
-        <Route path="/driver/scan" element={<PermissionRoute bit={9} requiredBits={[7]}><DriverScan /></PermissionRoute>} />
+        <Route path="/driver" element={<PermissionRoute bit={9}><Driver /></PermissionRoute>} />
+        <Route path="/driver/scan" element={<PermissionRoute bit={9}><DriverScan /></PermissionRoute>} />
 
         <Route path="/admin" element={<Admin />} />
         <Route path="/admin/vehicles" element={<AdminVehicles />} />

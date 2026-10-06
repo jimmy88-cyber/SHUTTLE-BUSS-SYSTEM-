@@ -39,7 +39,7 @@ export default function AdminLayout({ title, subtitle, children }) {
   const permission = getPermissionBits(user.permission, user.position_id);
   function hasAccess(item) {
     if (item.path === "/driver") {
-      return permission[9] === "1" && (permission[3] === "1" || permission[7] === "1");
+      return permission[9] === "1";
     }
     return permission[item.bit] === "1";
   }

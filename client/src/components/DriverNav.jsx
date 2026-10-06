@@ -20,15 +20,12 @@ export default function DriverNav() {
   const [user, setUser] = useState(getUser);
   const permission = getPermissionBits(user?.permission, user?.position_id);
   const permittedLinks = [
-    ...(permission[9] === "1" && (permission[3] === "1" || permission[7] === "1")
+    ...(permission[9] === "1"
       ? [{ path: "/driver", icon: "🚐", label: "หน้าคนขับ" }]
       : []),
     ...ADMIN_LINKS.filter((item) => permission[item.bit] === "1"),
     ...(permission[8] === "1"
       ? [{ path: "/home", icon: "👤", label: "ผู้ใช้บริการ" }]
-      : []),
-    ...(permission[9] === "1" && permission[7] === "1"
-      ? [{ path: "/driver/scan", icon: "📷", label: "สแกน QR" }]
       : []),
   ];
 

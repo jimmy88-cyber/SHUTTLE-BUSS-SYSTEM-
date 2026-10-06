@@ -28,7 +28,7 @@ function statusLabel(status) {
 
 export default function Driver() {
   const user = getUser();
-  const canScan = getPermissionBits(user?.permission, user?.position_id)[7] === "1";
+  const canScan = getPermissionBits(user?.permission, user?.position_id)[9] === "1";
   const navigate = useNavigate();
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
