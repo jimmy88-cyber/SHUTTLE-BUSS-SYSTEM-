@@ -176,7 +176,7 @@ export default function AdminTrips() {
                   <td>{s.schedule_id}</td>
                   <td>
                     {s.departure_time
-                      ? new Date(s.departure_time).toLocaleString("th-TH")
+                      ? new Date(s.departure_time).toLocaleString("th-TH", { calendar: "gregory" })
                       : "-"}
                   </td>
                   <td>{s.route?.route_name}</td>

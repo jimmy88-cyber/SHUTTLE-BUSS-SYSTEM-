@@ -32,9 +32,11 @@ export default function Driver() {
   const navigate = useNavigate();
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tripsError, setTripsError] = useState("");
   const [selected, setSelected] = useState(null);
   const [passengers, setPassengers] = useState([]);
   const [paxLoading, setPaxLoading] = useState(false);
+  const [paxError, setPaxError] = useState("");
   const [busy, setBusy] = useState(false);
   const [clk, setClk] = useState(() =>
     new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
@@ -54,12 +56,14 @@ export default function Driver() {
 
   async function loadTrips() {
     setLoading(true);
+    setTripsError("");
     try {
       const list = await api.getSchedules({ driver_id: user.user_id });
       setTrips(list);
     } catch (e) {
       console.error(e);
       setTrips([]);
+      setTripsError(e.message);
     } finally {
       setLoading(false);
     }
@@ -68,12 +72,14 @@ export default function Driver() {
   async function openTrip(t) {
     setSelected(t);
     setPaxLoading(true);
+    setPaxError("");
     try {
       const list = await api.getBookings({ schedule_id: t.schedule_id });
       setPassengers(list.filter((b) => b.status !== "cancelled"));
     } catch (e) {
       console.error(e);
       setPassengers([]);
+      setPaxError(e.message);
     } finally {
       setPaxLoading(false);
     }
@@ -175,6 +181,13 @@ export default function Driver() {
 
           {paxLoading ? (
             <div className="m-empty">กำลังโหลด...</div>
+          ) : paxError ? (
+            <div className="error-msg" role="alert">
+              <div>โหลดรายชื่อผู้โดยสารไม่สำเร็จ: {paxError}</div>
+              <button type="button" className="m-btn m-btn-outline" style={{ marginTop: 10 }} onClick={() => openTrip(selected)}>
+                ลองโหลดอีกครั้ง
+              </button>
+            </div>
           ) : groups.length === 0 ? (
             <div className="m-empty">
               <div className="big">👤</div>
@@ -324,6 +337,13 @@ export default function Driver() {
 
         {loading ? (
           <div className="m-empty">กำลังโหลด...</div>
+        ) : tripsError ? (
+          <div className="error-msg" role="alert">
+            <div>โหลดรอบรถไม่สำเร็จ: {tripsError}</div>
+            <button type="button" className="m-btn m-btn-outline" style={{ marginTop: 10 }} onClick={loadTrips}>
+              ลองโหลดอีกครั้ง
+            </button>
+          </div>
         ) : trips.length === 0 ? (
           <div className="m-empty">
             <div className="big">🚌</div>
