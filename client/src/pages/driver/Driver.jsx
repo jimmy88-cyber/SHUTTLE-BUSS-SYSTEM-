@@ -242,14 +242,14 @@ export default function Driver() {
                           x.schedule_id === selected.schedule_id ? { ...x, status: "in_progress" } : x
                         )
                       );
-                      navigate("/driver/scan");
+                      navigate(`/driver/scan?schedule_id=${encodeURIComponent(selected.schedule_id)}`);
                     } catch (e) {
                       alert(e.message);
                     } finally {
                       setBusy(false);
                     }
                   } else {
-                    navigate("/driver/scan");
+                    navigate(`/driver/scan?schedule_id=${encodeURIComponent(selected.schedule_id)}`);
                   }
                 }}
                 disabled={busy}
