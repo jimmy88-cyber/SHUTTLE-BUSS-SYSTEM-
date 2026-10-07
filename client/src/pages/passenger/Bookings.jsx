@@ -89,14 +89,23 @@ export default function Bookings() {
     const key = statusOf(b) === 'cancelled' ? `${sid}|c|${(b.booked_at || '').slice(0, 19)}` : `${sid}|a`;
     (groups[key] ||= []).push(b);
   });
+
+  // ลำดับความสำคัญ: 0 = booked (บนสุด), 1 = เสร็จสิ้น/อื่น ๆ, 2 = ยกเลิก (ล่างสุด)
+  const rank = (key) => {
+    const st = groupStatus(groups[key]);
+    if (st === 'booked') return 0;
+    if (st === 'cancelled') return 2;
+    return 1;
+  };
+
   const keys = Object.keys(groups).sort((a, b) => {
-    const ca = a.includes('|c|') ? 1 : 0;
-    const cb = b.includes('|c|') ? 1 : 0;
-    if (ca !== cb) return ca - cb;
-    // ใช้งานอยู่: เรียงตามรอบ · ประวัติยกเลิก: ล่าสุดก่อน
-    return ca
-      ? b.split('|c|')[1].localeCompare(a.split('|c|')[1])
-      : a.localeCompare(b, undefined, { numeric: true });
+    const ra = rank(a);
+    const rb = rank(b);
+    if (ra !== rb) return ra - rb;
+    // ประวัติยกเลิก: ล่าสุดก่อน
+    if (ra === 2) return b.split('|c|')[1].localeCompare(a.split('|c|')[1]);
+    // booked และเสร็จสิ้น: เรียงตามเลขรอบ น้อย → มาก
+    return a.localeCompare(b, undefined, { numeric: true });
   });
 
   return (
