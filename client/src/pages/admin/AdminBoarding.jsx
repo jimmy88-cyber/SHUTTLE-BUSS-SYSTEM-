@@ -37,7 +37,14 @@ export default function AdminBoarding() {
                 <td>{r.stop?.stop_name}</td>
                 <td>{r.scanned_by_user?.driver_name}</td>
                 <td>
-                  {r.scanned_at ? new Date(r.scanned_at).toLocaleString('th-TH') : '-'}
+                  {r.scanned_at ? new Date(r.scanned_at).toLocaleString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: 'Asia/Bangkok',
+                  }).replace(',', '') : '-'}
                 </td>
               </tr>
             ))}

@@ -7,16 +7,20 @@ import DriverNav from "../../components/DriverNav";
 
 function timeOnly(iso) {
   if (!iso) return "--:--";
-  return new Date(iso).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Bangkok",
+  });
 }
 
 function dateTimeFull(iso) {
   if (!iso) return "-";
   const d = new Date(iso);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day} ${timeOnly(iso)} น.`;
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const y = d.getFullYear();
+  return `${day}/${m}/${y} ${timeOnly(iso)}`;
 }
 
 function statusLabel(status) {
@@ -39,7 +43,7 @@ export default function Driver() {
   const [paxError, setPaxError] = useState("");
   const [busy, setBusy] = useState(false);
   const [clk, setClk] = useState(() =>
-    new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+    new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" })
   );
 
   useEffect(() => {
@@ -49,7 +53,7 @@ export default function Driver() {
     }
     loadTrips();
     const t = setInterval(() => {
-      setClk(new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }));
+      setClk(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" }));
     }, 30000);
     return () => clearInterval(t);
   }, []);

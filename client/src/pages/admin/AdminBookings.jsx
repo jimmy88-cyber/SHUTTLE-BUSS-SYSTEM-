@@ -52,7 +52,14 @@ export default function AdminBookings() {
                   <span>เวลาเดินทาง</span>
                   <strong>
                     {b.schedule?.departure_time
-                      ? new Date(b.schedule.departure_time).toLocaleString('th-TH')
+                      ? new Date(b.schedule.departure_time).toLocaleString('en-GB', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          timeZone: 'Asia/Bangkok',
+                        }).replace(',', '')
                       : '-'}
                   </strong>
                 </div>
@@ -90,7 +97,14 @@ export default function AdminBookings() {
                 <td>{b.route?.route_name}</td>
                 <td>
                   {b.schedule?.departure_time
-                    ? new Date(b.schedule.departure_time).toLocaleString('th-TH')
+                    ? new Date(b.schedule.departure_time).toLocaleString('en-GB', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        timeZone: 'Asia/Bangkok',
+                      }).replace(',', '')
                     : '-'}
                 </td>
                 <td>

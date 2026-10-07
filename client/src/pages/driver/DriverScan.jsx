@@ -7,7 +7,7 @@ import DriverNav from "../../components/DriverNav";
 
 function timeOnly(iso) {
   if (!iso) return "--:--";
-  return new Date(iso).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" });
 }
 
 export default function DriverScan() {
@@ -27,7 +27,7 @@ export default function DriverScan() {
   const [recentScheduleId, setRecentScheduleId] = useState(null);
   const [camOn, setCamOn] = useState(false);
   const [clk, setClk] = useState(() =>
-    new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+    new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" })
   );
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -57,7 +57,7 @@ export default function DriverScan() {
         setError(e.message || "โหลดรอบรถไม่สำเร็จ");
       });
     const t = setInterval(() => {
-      setClk(new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }));
+      setClk(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" }));
     }, 30000);
     return () => {
       clearInterval(t);
@@ -333,7 +333,14 @@ export default function DriverScan() {
                   <b>{r.booking_id}</b> {r.passenger?.passenger_name || ""}
                   <br />
                   <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
-                    {r.scanned_at ? new Date(r.scanned_at).toLocaleString("th-TH") : ""} · {r.stop?.stop_name}
+                    {r.scanned_at ? new Date(r.scanned_at).toLocaleString("en-GB", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      timeZone: "Asia/Bangkok",
+                    }).replace(",", "") : ""} · {r.stop?.stop_name}
                   </span>
                 </div>
                 <span className="m-badge m-badge-checked">ขึ้นแล้ว</span>

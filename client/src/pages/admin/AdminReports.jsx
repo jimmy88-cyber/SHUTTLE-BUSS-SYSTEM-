@@ -17,9 +17,9 @@ function inRange(iso, from, to) {
   return t >= a && t <= b;
 }
 
-function toBuddhistYear(iso) {
+function toCalendarYear(iso) {
   if (!iso) return null;
-  return new Date(iso).getFullYear() + 543;
+  return new Date(iso).getFullYear();
 }
 
 /** กราฟแท่งแบบ Clustered (หลาย series) */
@@ -184,7 +184,7 @@ export default function AdminReports() {
     if (!year) return { months, totals: { bookings: 0, seats: 0, cancel: 0, checkin: 0, noshow: 0 } };
 
     for (const b of bookings) {
-      const by = toBuddhistYear(b.booked_at || b.schedule?.departure_time);
+      const by = toCalendarYear(b.booked_at || b.schedule?.departure_time);
       if (by !== y) continue;
       const m = new Date(b.booked_at || b.schedule?.departure_time).getMonth();
       const row = months[m];
@@ -301,9 +301,9 @@ export default function AdminReports() {
               <label className="form-label">เลือกปี</label>
               <select className="form-control" value={year} onChange={(e) => setYear(e.target.value)}>
                 <option value="">-- เลือกปี --</option>
-                <option value="2567">2567</option>
-                <option value="2568">2568</option>
-                <option value="2569">2569</option>
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
               </select>
             </div>
             <div className="form-group" style={{ minWidth: 260 }}>
@@ -476,7 +476,7 @@ export default function AdminReports() {
               <p>
                 เลือกช่วงวันที่ แล้วกด <strong>แสดงรายงาน</strong>
                 <br />
-                ตัวอย่าง: 12 เมษายน 2568 – 15 เมษายน 2568
+                ตัวอย่าง: 12 เมษายน 2025 – 15 เมษายน 2025
               </p>
             </div>
           ) : (
@@ -599,7 +599,7 @@ export default function AdminReports() {
               <p>
                 เลือกช่วงวันที่ แล้วกด <strong>แสดงรายงาน</strong>
                 <br />
-                ตัวอย่าง: 1 – 30 เมษายน 2568
+                ตัวอย่าง: 1 – 30 เมษายน 2025
               </p>
             </div>
           ) : (

@@ -32,7 +32,7 @@ export default function Home() {
   return (
     <div className="m-body">
       <div className="m-status">
-        <span>{new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</span>
+        <span>{new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' })}</span>
         <span>Shuttle MUT</span>
       </div>
       <header className="m-header rounded">

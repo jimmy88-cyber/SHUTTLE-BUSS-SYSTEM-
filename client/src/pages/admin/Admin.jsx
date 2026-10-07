@@ -137,12 +137,14 @@ export default function Admin() {
                           <td>{t.schedule_id}</td>
                           <td>
                             {t.departure_time
-                              ? new Date(t.departure_time).toLocaleString("th-TH", {
-                                  day: "numeric",
-                                  month: "short",
+                              ? new Date(t.departure_time).toLocaleString("en-GB", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
                                   hour: "2-digit",
                                   minute: "2-digit",
-                                })
+                                  timeZone: "Asia/Bangkok",
+                                }).replace(",", "")
                               : "-"}
                           </td>
                           <td>{t.driver?.driver_name}</td>
