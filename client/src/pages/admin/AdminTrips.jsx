@@ -75,9 +75,19 @@ export default function AdminTrips() {
   }
   useEffect(load, []);
 
+  function nextScheduleId() {
+    // หาเลขสูงสุดจากรหัสที่มีอยู่ แล้ว +1 แล้ว pad เป็น 4 หลัก (เช่น 0009 → 0010)
+    let max = 0;
+    for (const s of list) {
+      const n = parseInt(String(s.schedule_id || "").replace(/\D/g, ""), 10);
+      if (!Number.isNaN(n) && n > max) max = n;
+    }
+    return String(max + 1).padStart(4, "0");
+  }
+
   function openAdd() {
     setEditId(null);
-    setForm(empty);
+    setForm({ ...empty, schedule_id: nextScheduleId() });
     setError("");
     setModal(true);
   }

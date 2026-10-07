@@ -92,10 +92,27 @@ export default function AdminEmployees() {
   }
   useEffect(load, []);
 
+  /** หาเลขสูงสุดจากรหัสที่มีอยู่ แล้ว +1 (pad ตามความยาวเดิม อย่างน้อย 2 หลัก) */
+  function nextCode(items, key, minPad = 2) {
+    let max = 0;
+    let pad = minPad;
+    for (const item of items) {
+      const raw = String(item[key] || "");
+      const n = parseInt(raw.replace(/\D/g, ""), 10);
+      if (!Number.isNaN(n) && n > max) max = n;
+      if (/^\d+$/.test(raw) && raw.length > pad) pad = raw.length;
+    }
+    return String(max + 1).padStart(pad, "0");
+  }
+
   // ---- Position ----
   function openPosAdd() {
     setPosEditId(null);
-    setPosForm({ position_id: "", name: "", permission: "0".repeat(PERMISSION_COUNT) });
+    setPosForm({
+      position_id: nextCode(positions, "position_id", 2),
+      name: "",
+      permission: "0".repeat(PERMISSION_COUNT),
+    });
     setPosModal(true);
   }
   function openPosEdit(p) {
@@ -144,7 +161,7 @@ export default function AdminEmployees() {
   // ---- Department ----
   function openDeptAdd() {
     setDeptEditId(null);
-    setDeptForm({ department_id: "", name: "" });
+    setDeptForm({ department_id: nextCode(departments, "department_id", 2), name: "" });
     setDeptModal(true);
   }
   function openDeptEdit(d) {

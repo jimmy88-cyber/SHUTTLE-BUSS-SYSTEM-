@@ -20,6 +20,19 @@ function statusBadge(status) {
 const emptyType = { vehicle_type_id: "", name: "", capacity: "" };
 const emptyVeh = { vehicle_id: "", plate_number: "", vehicle_type_id: "", status: "available" };
 
+/** หาเลขสูงสุดจากรหัสที่มีอยู่ แล้ว +1 (pad ตามความยาวเดิม อย่างน้อย 2 หลัก) */
+function nextCode(items, key, minPad = 2) {
+  let max = 0;
+  let pad = minPad;
+  for (const item of items) {
+    const raw = String(item[key] || "");
+    const n = parseInt(raw.replace(/\D/g, ""), 10);
+    if (!Number.isNaN(n) && n > max) max = n;
+    if (/^\d+$/.test(raw) && raw.length > pad) pad = raw.length;
+  }
+  return String(max + 1).padStart(pad, "0");
+}
+
 export default function AdminVehicles() {
   const [types, setTypes] = useState([]);
   const [list, setList] = useState([]);
@@ -44,7 +57,7 @@ export default function AdminVehicles() {
 
   function openTypeAdd() {
     setTypeEditId(null);
-    setTypeForm(emptyType);
+    setTypeForm({ ...emptyType, vehicle_type_id: nextCode(types, "vehicle_type_id", 2) });
     setTypeModal(true);
   }
   function openTypeEdit(t) {
@@ -80,7 +93,7 @@ export default function AdminVehicles() {
 
   function openVehAdd() {
     setVehEditId(null);
-    setVehForm(emptyVeh);
+    setVehForm({ ...emptyVeh, vehicle_id: nextCode(list, "vehicle_id", 2) });
     setVehModal(true);
   }
   function openVehEdit(v) {

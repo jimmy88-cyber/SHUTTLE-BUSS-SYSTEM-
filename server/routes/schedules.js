@@ -49,20 +49,35 @@ router.post("/api/schedules", async (req, res) => {
     }
     const dt = String(departure_time).replace("T", " ").replace(/\.\d+Z?$/, "").slice(0, 19);
     await withDb(async (conn) => {
-      await q(
-        conn,
-        `INSERT INTO Schedule (schedule_id,departure_time,driver_id,vehicle_id,route_id,status)
-         VALUES (:schedule_id, TO_TIMESTAMP(:dt,'YYYY-MM-DD HH24:MI:SS'), :driver_id,:vehicle_id,:route_id,:status)`,
-        {
-          schedule_id,
-          dt,
-          driver_id: Number(driver_id),
-          vehicle_id,
-          route_id,
-          status: status || "planned",
+      // ตรวจว่ารหัสรอบซ้ำหรือไม่ก่อน insert
+      const exists = await one(conn, `SELECT schedule_id FROM Schedule WHERE schedule_id = :id`, {
+        id: schedule_id,
+      });
+      if (exists) {
+        return res.status(409).json({ message: `รหัสรอบ "${schedule_id}" มีอยู่แล้ว กรุณาใช้รหัสอื่น` });
+      }
+      try {
+        await q(
+          conn,
+          `INSERT INTO Schedule (schedule_id,departure_time,driver_id,vehicle_id,route_id,status)
+           VALUES (:schedule_id, TO_TIMESTAMP(:dt,'YYYY-MM-DD HH24:MI:SS'), :driver_id,:vehicle_id,:route_id,:status)`,
+          {
+            schedule_id,
+            dt,
+            driver_id: Number(driver_id),
+            vehicle_id,
+            route_id,
+            status: status || "planned",
+          }
+        );
+        res.status(201).json({ message: "เพิ่มรอบรถสำเร็จ", schedule_id });
+      } catch (insertErr) {
+        // กันกรณี race condition หรือ constraint อื่น
+        if (insertErr.errorNum === 1 || insertErr.code === "ORA-00001") {
+          return res.status(409).json({ message: `รหัสรอบ "${schedule_id}" มีอยู่แล้ว กรุณาใช้รหัสอื่น` });
         }
-      );
-      res.status(201).json({ message: "เพิ่มรอบรถสำเร็จ", schedule_id });
+        throw insertErr;
+      }
     });
   } catch (e) {
     err(res, e);

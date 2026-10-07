@@ -6,6 +6,19 @@ import { useSortableRows } from "../../hooks/useSortableRows";
 
 const emptyRoute = { route_id: "", route_name: "", total_minutes: "" };
 
+/** หาเลขสูงสุดจากรหัสที่มีอยู่ แล้ว +1 (pad ตามความยาวเดิม อย่างน้อย 2 หลัก) */
+function nextCode(items, key, minPad = 2) {
+  let max = 0;
+  let pad = minPad;
+  for (const item of items) {
+    const raw = String(item[key] || "");
+    const n = parseInt(raw.replace(/\D/g, ""), 10);
+    if (!Number.isNaN(n) && n > max) max = n;
+    if (/^\d+$/.test(raw) && raw.length > pad) pad = raw.length;
+  }
+  return String(max + 1).padStart(pad, "0");
+}
+
 export default function AdminRoutes() {
   const [list, setList] = useState([]);
   const { sortedRows, sort, sortBy } = useSortableRows(list);
@@ -24,10 +37,25 @@ export default function AdminRoutes() {
   const [saving, setSaving] = useState(false);
 
   function load() {
-    api.getRoutes().then(setList).catch(console.error);
+    api.getRoutes().then((rows) => {
+      setList(rows);
+    }).catch(console.error);
     api.getStops().then(setStopsMaster).catch(console.error);
   }
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+  }, []);
+
+  // หลังโหลด list และฟอร์มว่าง (ยังไม่ได้อยู่โหมดแก้ไข) → เติมรหัสถัดไป
+  useEffect(() => {
+    if (!editId) {
+      setForm((prev) => {
+        // ถ้ามีชื่อหรือเวลากรอกอยู่แล้ว อย่าทับ (ผู้ใช้กำลังพิมพ์)
+        if (prev.route_name || prev.total_minutes) return prev;
+        return { ...emptyRoute, route_id: nextCode(list, "route_id", 2) };
+      });
+    }
+  }, [list, editId]);
 
   function startEdit(r) {
     setEditId(r.route_id);
@@ -42,7 +70,7 @@ export default function AdminRoutes() {
 
   function cancelEdit() {
     setEditId(null);
-    setForm(emptyRoute);
+    setForm({ ...emptyRoute, route_id: nextCode(list, "route_id", 2) });
   }
 
   async function saveRoute(e) {
@@ -60,7 +88,9 @@ export default function AdminRoutes() {
         await api.createRoute(form);
         setMsg("เพิ่มเส้นทางสำเร็จ");
       }
-      cancelEdit();
+      // รีเซ็ตฟอร์มก่อน แล้วโหลดใหม่ (รหัสถัดไปจะถูกเติมจาก list ใหม่)
+      setEditId(null);
+      setForm(emptyRoute);
       load();
     } catch (err) {
       setError(err.message);
