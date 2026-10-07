@@ -90,10 +90,11 @@ export default function Bookings() {
     (groups[key] ||= []).push(b);
   });
 
-  // ลำดับความสำคัญ: 0 = booked (บนสุด), 1 = เสร็จสิ้น/อื่น ๆ, 2 = ยกเลิก (ล่างสุด)
+  // ลำดับความสำคัญ: 0 = มีปุ่มดู QR (ยังมีที่นั่ง active), 1 = เสร็จสิ้น, 2 = ยกเลิก (ล่างสุด)
   const rank = (key) => {
-    const st = groupStatus(groups[key]);
-    if (st === 'booked') return 0;
+    const items = groups[key];
+    if (items.some(isActive)) return 0; // มีปุ่ม "ดู QR" → ขึ้นบนสุด
+    const st = groupStatus(items);
     if (st === 'cancelled') return 2;
     return 1;
   };
