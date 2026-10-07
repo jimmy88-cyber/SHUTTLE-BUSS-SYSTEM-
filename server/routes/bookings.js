@@ -3,7 +3,7 @@
 const express = require("express");
 const router = express.Router();
 const { withDb, q, one, all } = require("../config/db");
-const { err, BOOKING_SQL, mapBooking, seatsBooked, capacityOf, iso } = require("../utils/helpers");
+const { err, BOOKING_SQL, SCHEDULE_SQL, mapBooking, seatsBooked, capacityOf, iso } = require("../utils/helpers");
 router.get("/api/bookings", async (req, res) => {
   try {
     await withDb(async (conn) => {
