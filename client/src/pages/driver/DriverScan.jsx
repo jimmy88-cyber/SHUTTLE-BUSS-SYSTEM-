@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, sortByNumericId } from "../../api/client";
 import { getUser } from "../../api/auth";
 import { getPermissionBits } from "../../permissions";
@@ -12,8 +12,11 @@ function timeOnly(iso) {
 
 export default function DriverScan() {
   const user = getUser();
+  const userId = user?.user_id;
   const canViewTrips = getPermissionBits(user?.permission, user?.position_id)[3] === "1";
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedScheduleId = searchParams.get("schedule_id");
   const [qr, setQr] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -31,15 +34,22 @@ export default function DriverScan() {
   const inputRef = useRef(null);
 
   useEffect(() => {
-    if (!user) {
+    if (!userId) {
       navigate("/");
       return;
     }
     api
-      .getSchedules({ driver_id: user.user_id })
+      .getSchedules({ driver_id: userId })
       .then((assignedTrips) => {
         setTrips(assignedTrips);
-        const currentTrip = assignedTrips.find((trip) => trip.status === "in_progress");
+        const currentTrip = requestedScheduleId
+          ? assignedTrips.find((trip) => String(trip.schedule_id) === requestedScheduleId)
+          : assignedTrips.find((trip) => trip.status === "in_progress");
+        if (requestedScheduleId && !currentTrip) {
+          setError(`ไม่พบรอบ ${requestedScheduleId} ในรายการรอบรถของคุณ`);
+          loadRecent();
+          return;
+        }
         loadRecent(currentTrip?.schedule_id);
       })
       .catch((e) => {
@@ -53,11 +63,14 @@ export default function DriverScan() {
       clearInterval(t);
       stopCam();
     };
-  }, []);
+  }, [navigate, requestedScheduleId, userId]);
 
   const activeTrip = useMemo(
-    () => trips.find((t) => t.status === "in_progress") || null,
-    [trips]
+    () =>
+      requestedScheduleId
+        ? trips.find((t) => String(t.schedule_id) === requestedScheduleId) || null
+        : trips.find((t) => t.status === "in_progress") || null,
+    [trips, requestedScheduleId]
   );
 
   async function loadRecent(scheduleId) {
