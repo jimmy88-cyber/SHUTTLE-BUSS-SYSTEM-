@@ -341,15 +341,26 @@ export default function AdminReports() {
               <div className="card" style={{ marginBottom: 16 }}>
                 <h2 className="card-title" style={{ marginBottom: 16 }}>
                   สถิติการจอง ปี {year}
+                  {dataType === "checkin" && " (เฉพาะ Check-in สำเร็จ)"}
+                  {dataType === "cancel" && " (เฉพาะการยกเลิก)"}
+                  {dataType === "noshow" && " (เฉพาะ No Show)"}
                 </h2>
                 <div className="report-summary-grid">
-                  {[
-                    ["🎫", report2.totals.bookings, "จำนวนการจอง", "#e0f2fe"],
-                    ["💺", report2.totals.seats, "ที่นั่งที่ถูกจอง", "#dbeafe"],
-                    ["✕", report2.totals.cancel, "การยกเลิก", "#fef3c7"],
-                    ["✓", report2.totals.checkin, "Check-in สำเร็จ", "#dcfce7"],
-                    ["👻", report2.totals.noshow, "No Show", "#fce7f3"],
-                  ].map(([ico, val, label, bg]) => (
+                  {(
+                    dataType === "all"
+                      ? [
+                          ["🎫", report2.totals.bookings, "จำนวนการจอง", "#e0f2fe"],
+                          ["💺", report2.totals.seats, "ที่นั่งที่ถูกจอง", "#dbeafe"],
+                          ["✕", report2.totals.cancel, "การยกเลิก", "#fef3c7"],
+                          ["✓", report2.totals.checkin, "Check-in สำเร็จ", "#dcfce7"],
+                          ["👻", report2.totals.noshow, "No Show", "#fce7f3"],
+                        ]
+                      : dataType === "checkin"
+                        ? [["✓", report2.totals.checkin, "Check-in สำเร็จ", "#dcfce7"]]
+                        : dataType === "cancel"
+                          ? [["✕", report2.totals.cancel, "การยกเลิก", "#fef3c7"]]
+                          : [["👻", report2.totals.noshow, "No Show", "#fce7f3"]]
+                  ).map(([ico, val, label, bg]) => (
                     <div className="report-summary-card" key={label}>
                       <div className="rsc-icon" style={{ background: bg }}>
                         {ico}
@@ -366,22 +377,36 @@ export default function AdminReports() {
                     <thead>
                       <tr>
                         <th>เดือน</th>
-                        <th>จำนวนการจอง</th>
-                        <th>จำนวนที่นั่งที่ถูกจอง</th>
-                        <th>การยกเลิก</th>
-                        <th>Check-in สำเร็จ</th>
-                        <th>No Show</th>
+                        {dataType === "all" && (
+                          <>
+                            <th>จำนวนการจอง</th>
+                            <th>จำนวนที่นั่งที่ถูกจอง</th>
+                            <th>การยกเลิก</th>
+                            <th>Check-in สำเร็จ</th>
+                            <th>No Show</th>
+                          </>
+                        )}
+                        {dataType === "checkin" && <th>Check-in สำเร็จ</th>}
+                        {dataType === "cancel" && <th>การยกเลิก</th>}
+                        {dataType === "noshow" && <th>No Show</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {report2.months.map((r) => (
                         <tr key={r.month}>
                           <td>{r.month}</td>
-                          <td>{r.bookings}</td>
-                          <td>{r.seats}</td>
-                          <td>{r.cancel}</td>
-                          <td>{r.checkin}</td>
-                          <td>{r.noshow}</td>
+                          {dataType === "all" && (
+                            <>
+                              <td>{r.bookings}</td>
+                              <td>{r.seats}</td>
+                              <td>{r.cancel}</td>
+                              <td>{r.checkin}</td>
+                              <td>{r.noshow}</td>
+                            </>
+                          )}
+                          {dataType === "checkin" && <td>{r.checkin}</td>}
+                          {dataType === "cancel" && <td>{r.cancel}</td>}
+                          {dataType === "noshow" && <td>{r.noshow}</td>}
                         </tr>
                       ))}
                     </tbody>
@@ -390,13 +415,29 @@ export default function AdminReports() {
               </div>
 
               <ClusteredBarChart
-                title={`ปี ${year}\nCheck-in / ยกเลิก / No Show (Clustered)`}
+                title={
+                  dataType === "all"
+                    ? `ปี ${year}\nCheck-in / ยกเลิก / No Show (Clustered)`
+                    : dataType === "checkin"
+                      ? `ปี ${year}\nเฉพาะ Check-in สำเร็จ`
+                      : dataType === "cancel"
+                        ? `ปี ${year}\nเฉพาะการยกเลิก`
+                        : `ปี ${year}\nเฉพาะ No Show`
+                }
                 categories={MONTHS_TH}
-                series={[
-                  { name: "Check-in สำเร็จ", color: "#3b82f6", values: report2.months.map((m) => m.checkin) },
-                  { name: "การยกเลิก", color: "#ef4444", values: report2.months.map((m) => m.cancel) },
-                  { name: "No Show", color: "#22c55e", values: report2.months.map((m) => m.noshow) },
-                ]}
+                series={
+                  dataType === "all"
+                    ? [
+                        { name: "Check-in สำเร็จ", color: "#3b82f6", values: report2.months.map((m) => m.checkin) },
+                        { name: "การยกเลิก", color: "#ef4444", values: report2.months.map((m) => m.cancel) },
+                        { name: "No Show", color: "#22c55e", values: report2.months.map((m) => m.noshow) },
+                      ]
+                    : dataType === "checkin"
+                      ? [{ name: "Check-in สำเร็จ", color: "#3b82f6", values: report2.months.map((m) => m.checkin) }]
+                      : dataType === "cancel"
+                        ? [{ name: "การยกเลิก", color: "#ef4444", values: report2.months.map((m) => m.cancel) }]
+                        : [{ name: "No Show", color: "#22c55e", values: report2.months.map((m) => m.noshow) }]
+                }
               />
             </>
           )}
