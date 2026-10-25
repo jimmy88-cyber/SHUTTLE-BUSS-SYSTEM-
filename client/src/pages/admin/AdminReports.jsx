@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import AdminLayout from "../../components/AdminLayout";
 
@@ -9,22 +9,8 @@ const TABS = [
 ];
 const MONTHS_TH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
-function inRange(iso, from, to) {
-  if (!iso) return false;
-  const t = new Date(iso).getTime();
-  const a = from ? new Date(from + "T00:00:00").getTime() : -Infinity;
-  const b = to ? new Date(to + "T23:59:59").getTime() : Infinity;
-  return t >= a && t <= b;
-}
-
-function toCalendarYear(iso) {
-  if (!iso) return null;
-  return new Date(iso).getFullYear();
-}
-
 /** กราฟแท่งแบบ Clustered (หลาย series) */
 function ClusteredBarChart({ title, categories, series, height = 280 }) {
-  // series: [{ name, color, values: number[] }]
   const max = Math.max(1, ...series.flatMap((s) => s.values));
   const pad = { top: 40, right: 20, bottom: 50, left: 48 };
   const w = Math.max(520, categories.length * 56);
@@ -42,7 +28,6 @@ function ClusteredBarChart({ title, categories, series, height = 280 }) {
     <div className="chart-box">
       <div className="chart-title">{title}</div>
       <svg viewBox={`0 0 ${w} ${h}`} width="100%" style={{ maxWidth: w, display: "block", margin: "0 auto" }}>
-        {/* grid */}
         {ticks.map((t) => {
           const y = pad.top + chartH - (t / max) * chartH;
           return (
@@ -54,7 +39,6 @@ function ClusteredBarChart({ title, categories, series, height = 280 }) {
             </g>
           );
         })}
-        {/* bars */}
         {categories.map((cat, i) => {
           const gx = pad.left + i * groupW + 6;
           return (
@@ -78,11 +62,14 @@ function ClusteredBarChart({ title, categories, series, height = 280 }) {
             </g>
           );
         })}
-        <text x={pad.left - 36} y={pad.top + chartH / 2} fontSize="11" fill="#64748b" transform={`rotate(-90 ${pad.left - 36} ${pad.top + chartH / 2})`}>
+        <text
+          x={pad.left - 36}
+          y={pad.top + chartH / 2}
+          fontSize="11"
+          fill="#64748b"
+          transform={`rotate(-90 ${pad.left - 36} ${pad.top + chartH / 2})`}
+        >
           จำนวนคน
-        </text>
-        <text x={w / 2} y={h - 8} textAnchor="middle" fontSize="11" fill="#64748b">
-          {categories.length > 6 ? "เดือน / หมวด" : ""}
         </text>
       </svg>
       <div className="chart-legend">
@@ -151,131 +138,83 @@ export default function AdminReports() {
   const [dateTo7, setDateTo7] = useState("");
   const [type7, setType7] = useState("all");
   const [shown, setShown] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const [bookings, setBookings] = useState([]);
-  const [schedules, setSchedules] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
-  const [boarding, setBoarding] = useState([]);
+  // ผลจาก API (Oracle SQL)
+  const [report2, setReport2] = useState({ months: [], totals: { bookings: 0, seats: 0, cancel: 0, checkin: 0, noshow: 0 } });
+  const [report3, setReport3] = useState({ list: [], totals: { total: 0, checkin: 0, cancel: 0, noshow: 0 } });
+  const [report7, setReport7] = useState({ details: [], summary: [], grandTotal: 0 });
   const [vehicleTypes, setVehicleTypes] = useState([]);
 
   useEffect(() => {
-    Promise.all([
-      api.getBookings().catch(() => []),
-      api.getSchedules().catch(() => []),
-      api.getVehicles().catch(() => []),
-      api.getBoarding().catch(() => []),
-      api.getVehicleTypes().catch(() => []),
-    ]).then(([b, s, v, br, vt]) => {
-      setBookings(b);
-      setSchedules(s);
-      setVehicles(v);
-      setBoarding(br);
-      setVehicleTypes(vt);
-    });
+    api.getVehicleTypes().catch(() => []).then(setVehicleTypes);
   }, []);
-
-  const boardedIds = useMemo(() => new Set(boarding.map((x) => x.booking_id)), [boarding]);
-
-  const report2 = useMemo(() => {
-    const y = Number(year);
-    const months = MONTHS_TH.map((name) => ({
-      month: name, bookings: 0, seats: 0, cancel: 0, checkin: 0, noshow: 0,
-    }));
-    if (!year) return { months, totals: { bookings: 0, seats: 0, cancel: 0, checkin: 0, noshow: 0 } };
-
-    for (const b of bookings) {
-      const by = toCalendarYear(b.booked_at || b.schedule?.departure_time);
-      if (by !== y) continue;
-      const m = new Date(b.booked_at || b.schedule?.departure_time).getMonth();
-      const row = months[m];
-      if (!row) continue;
-      if (b.status === "cancelled") {
-        row.cancel += 1;
-        row.bookings += 1;
-        row.seats += Number(b.num_seats) || 0;
-      } else {
-        row.bookings += 1;
-        row.seats += Number(b.num_seats) || 0;
-        if (boardedIds.has(b.booking_id)) row.checkin += 1;
-        else row.noshow += 1;
-      }
-    }
-    const totals = months.reduce(
-      (a, r) => ({
-        bookings: a.bookings + r.bookings,
-        seats: a.seats + r.seats,
-        cancel: a.cancel + r.cancel,
-        checkin: a.checkin + r.checkin,
-        noshow: a.noshow + r.noshow,
-      }),
-      { bookings: 0, seats: 0, cancel: 0, checkin: 0, noshow: 0 }
-    );
-    return { months, totals };
-  }, [bookings, boardedIds, year]);
-
-  const report3 = useMemo(() => {
-    const filtered = bookings.filter((b) =>
-      inRange(b.booked_at || b.schedule?.departure_time, dateFrom3, dateTo3)
-    );
-    const byUser = {};
-    for (const b of filtered) {
-      const name = b.user?.passenger_name || `User ${b.user?.user_id || "-"}`;
-      if (!byUser[name]) byUser[name] = { name, total: 0, checkin: 0, cancel: 0, noshow: 0 };
-      byUser[name].total += 1;
-      if (b.status === "cancelled") byUser[name].cancel += 1;
-      else if (boardedIds.has(b.booking_id)) byUser[name].checkin += 1;
-      else byUser[name].noshow += 1;
-    }
-    const list = Object.values(byUser).sort((a, b) => b.total - a.total);
-    const totals = list.reduce(
-      (a, r) => ({
-        total: a.total + r.total,
-        checkin: a.checkin + r.checkin,
-        cancel: a.cancel + r.cancel,
-        noshow: a.noshow + r.noshow,
-      }),
-      { total: 0, checkin: 0, cancel: 0, noshow: 0 }
-    );
-    return { list, totals };
-  }, [bookings, boardedIds, dateFrom3, dateTo3]);
-
-  const report7 = useMemo(() => {
-    const filtered = schedules.filter((s) => inRange(s.departure_time, dateFrom7, dateTo7));
-    // รายละเอียด: ประเภท + ทะเบียน + จำนวนรอบ
-    const detailMap = {};
-    for (const s of filtered) {
-      const v = vehicles.find(
-        (x) => x.vehicle_id === s.vehicle?.vehicle_id || x.plate_number === s.vehicle?.plate_number
-      );
-      const typeName = v?.vehicle_type?.type_name || "ไม่ระบุ";
-      if (type7 !== "all" && typeName !== type7) continue;
-      const plate = v?.plate_number || s.vehicle?.plate_number || "-";
-      const key = `${typeName}||${plate}`;
-      if (!detailMap[key]) detailMap[key] = { type: typeName, plate, trips: 0 };
-      detailMap[key].trips += 1;
-    }
-    const details = Object.values(detailMap).sort((a, b) => a.type.localeCompare(b.type) || b.trips - a.trips);
-
-    // สรุปต่อประเภท
-    const sumMap = {};
-    for (const d of details) {
-      if (!sumMap[d.type]) sumMap[d.type] = { type: d.type, trips: 0 };
-      sumMap[d.type].trips += d.trips;
-    }
-    const summary = Object.values(sumMap);
-    const grandTotal = summary.reduce((a, r) => a + r.trips, 0);
-    return { details, summary, grandTotal };
-  }, [schedules, vehicles, dateFrom7, dateTo7, type7]);
 
   function switchTab(id) {
     setTab(id);
     setShown(false);
   }
 
-  const dateLabel3 =
-    dateFrom3 && dateTo3
-      ? `${dateFrom3} ถึง ${dateTo3}`
-      : "";
+  async function loadReport2() {
+    if (!year) {
+      alert("กรุณาเลือกปี");
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await api.getReportYearly(year);
+      const months = (data.months || []).map((m, i) => ({
+        ...m,
+        month: MONTHS_TH[i] || String(m.month_no),
+      }));
+      setReport2({ months, totals: data.totals || { bookings: 0, seats: 0, cancel: 0, checkin: 0, noshow: 0 } });
+      setShown(true);
+    } catch (e) {
+      alert(e.message || "โหลดรายงานไม่สำเร็จ");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadReport3() {
+    if (!dateFrom3 || !dateTo3) {
+      alert("กรุณาเลือกวันเริ่มต้นและวันสิ้นสุด");
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await api.getReportBehavior(dateFrom3, dateTo3);
+      setReport3({ list: data.list || [], totals: data.totals || { total: 0, checkin: 0, cancel: 0, noshow: 0 } });
+      setShown(true);
+    } catch (e) {
+      alert(e.message || "โหลดรายงานไม่สำเร็จ");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadReport7() {
+    if (!dateFrom7 || !dateTo7) {
+      alert("กรุณาเลือกวันเริ่มต้นและวันสิ้นสุด");
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await api.getReportVehicles(dateFrom7, dateTo7, type7);
+      setReport7({
+        details: data.details || [],
+        summary: data.summary || [],
+        grandTotal: data.grandTotal || 0,
+      });
+      setShown(true);
+    } catch (e) {
+      alert(e.message || "โหลดรายงานไม่สำเร็จ");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const dateLabel3 = dateFrom3 && dateTo3 ? `${dateFrom3} ถึง ${dateTo3}` : "";
 
   return (
     <AdminLayout title="ระบบรายงาน" subtitle="เลือกรายงานและปีที่ต้องการดูสถิติ">
@@ -315,18 +254,8 @@ export default function AdminReports() {
                 <option value="noshow">เฉพาะ No Show</option>
               </select>
             </div>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => {
-                if (!year) {
-                  alert("กรุณาเลือกปี");
-                  return;
-                }
-                setShown(true);
-              }}
-            >
-              แสดงรายงาน
+            <button type="button" className="btn btn-primary" onClick={loadReport2} disabled={loading}>
+              {loading ? "กำลังโหลด..." : "แสดงรายงาน"}
             </button>
           </div>
           {!shown ? (
@@ -456,18 +385,8 @@ export default function AdminReports() {
               <label className="form-label">วันสิ้นสุด</label>
               <input type="date" className="form-control" value={dateTo3} onChange={(e) => setDateTo3(e.target.value)} />
             </div>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => {
-                if (!dateFrom3 || !dateTo3) {
-                  alert("กรุณาเลือกวันเริ่มต้นและวันสิ้นสุด");
-                  return;
-                }
-                setShown(true);
-              }}
-            >
-              แสดงรายงาน
+            <button type="button" className="btn btn-primary" onClick={loadReport3} disabled={loading}>
+              {loading ? "กำลังโหลด..." : "แสดงรายงาน"}
             </button>
           </div>
           {!shown ? (
@@ -514,42 +433,30 @@ export default function AdminReports() {
                           </tr>
                         ))
                       )}
-                      {report3.list.length > 0 && (
+                    </tbody>
+                    {report3.list.length > 0 && (
+                      <tfoot>
                         <tr style={{ fontWeight: 700, background: "#f8fafc" }}>
-                          <td>รวมทั้งหมด</td>
+                          <td>รวม</td>
                           <td>{report3.totals.total}</td>
                           <td>{report3.totals.checkin}</td>
                           <td>{report3.totals.cancel}</td>
                           <td>{report3.totals.noshow}</td>
                         </tr>
-                      )}
-                    </tbody>
+                      </tfoot>
+                    )}
                   </table>
                 </div>
               </div>
-
               {report3.list.length > 0 && (
-                <>
-                  <ClusteredBarChart
-                    title={`พฤติกรรมผู้ใช้\n(${dateLabel3})`}
-                    categories={report3.list.slice(0, 10).map((u) => u.name.split(" ")[0])}
-                    series={[
-                      { name: "การจองทั้งหมด", color: "#3b82f6", values: report3.list.slice(0, 10).map((u) => u.total) },
-                      { name: "ขึ้นรถจริง", color: "#f59e0b", values: report3.list.slice(0, 10).map((u) => u.checkin) },
-                      { name: "ยกเลิก", color: "#94a3b8", values: report3.list.slice(0, 10).map((u) => u.cancel) },
-                      { name: "No Show", color: "#eab308", values: report3.list.slice(0, 10).map((u) => u.noshow) },
-                    ]}
-                    height={300}
-                  />
-                  <PieChart
-                    title={`สัดส่วนรวม ลูกค้าทุกราย\n(${dateLabel3})`}
-                    slices={[
-                      { name: "ขึ้นรถจริง", value: report3.totals.checkin, color: "#3b82f6" },
-                      { name: "ยกเลิก", value: report3.totals.cancel, color: "#f59e0b" },
-                      { name: "No Show", value: report3.totals.noshow, color: "#94a3b8" },
-                    ]}
-                  />
-                </>
+                <PieChart
+                  title="สัดส่วนพฤติกรรมโดยรวม"
+                  slices={[
+                    { name: "ขึ้นรถจริง", value: report3.totals.checkin, color: "#22c55e" },
+                    { name: "ยกเลิก", value: report3.totals.cancel, color: "#ef4444" },
+                    { name: "No Show", value: report3.totals.noshow, color: "#a855f7" },
+                  ].filter((s) => s.value > 0)}
+                />
               )}
             </>
           )}
@@ -569,28 +476,18 @@ export default function AdminReports() {
               <input type="date" className="form-control" value={dateTo7} onChange={(e) => setDateTo7(e.target.value)} />
             </div>
             <div className="form-group">
-              <label className="form-label">ประเภทรถ</label>
+              <label className="form-label">ประเภทยานพาหนะ</label>
               <select className="form-control" value={type7} onChange={(e) => setType7(e.target.value)}>
-                <option value="all">ทุกประเภท</option>
-                {vehicleTypes.map((t) => (
-                  <option key={t.vehicle_type_id} value={t.name}>
-                    {t.name}
+                <option value="all">ทั้งหมด</option>
+                {vehicleTypes.map((vt) => (
+                  <option key={vt.vehicle_type_id} value={vt.name || vt.type_name}>
+                    {vt.name || vt.type_name}
                   </option>
                 ))}
               </select>
             </div>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => {
-                if (!dateFrom7 || !dateTo7) {
-                  alert("กรุณาเลือกวันเริ่มต้นและวันสิ้นสุด");
-                  return;
-                }
-                setShown(true);
-              }}
-            >
-              แสดงรายงาน
+            <button type="button" className="btn btn-primary" onClick={loadReport7} disabled={loading}>
+              {loading ? "กำลังโหลด..." : "แสดงรายงาน"}
             </button>
           </div>
           {!shown ? (
