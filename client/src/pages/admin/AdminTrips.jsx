@@ -45,7 +45,9 @@ function vehicleLabel(v) {
 
 const empty = {
   schedule_id: "",
-  departure_time: "",
+  departure_date: "",
+  departure_hour: "",
+  departure_minute: "",
   driver_id: "",
   vehicle_id: "",
   route_id: "",
@@ -93,10 +95,13 @@ export default function AdminTrips() {
   }
 
   function openEdit(s) {
+    const localDeparture = toLocalInput(s.departure_time);
     setEditId(s.schedule_id);
     setForm({
       schedule_id: s.schedule_id,
-      departure_time: toLocalInput(s.departure_time),
+      departure_date: localDeparture.slice(0, 10),
+      departure_hour: localDeparture.slice(11, 13),
+      departure_minute: localDeparture.slice(14, 16),
       driver_id: String(s.driver?.driver_id || ""),
       vehicle_id: s.vehicle?.vehicle_id || "",
       route_id: s.route?.route_id || "",
@@ -111,7 +116,9 @@ export default function AdminTrips() {
     setError("");
     setMsg("");
     try {
-      const dt = form.departure_time ? form.departure_time.replace("T", " ") + ":00" : "";
+      const dt = form.departure_date && form.departure_hour && form.departure_minute
+        ? `${form.departure_date} ${form.departure_hour}:${form.departure_minute}:00`
+        : "";
       const body = {
         departure_time: dt,
         driver_id: Number(form.driver_id),
@@ -237,14 +244,44 @@ export default function AdminTrips() {
                 </div>
               )}
               <div className="form-group">
-                <label className="form-label">วันเวลาออก *</label>
+                <label className="form-label">วันที่ออก *</label>
                 <input
-                  type="datetime-local"
+                  type="date"
                   className="form-control"
-                  value={form.departure_time}
-                  onChange={(e) => setForm({ ...form, departure_time: e.target.value })}
+                  value={form.departure_date}
+                  onChange={(e) => setForm({ ...form, departure_date: e.target.value })}
                   required
                 />
+              </div>
+              <div className="form-group">
+                <label className="form-label">เวลาออก (24 ชั่วโมง) *</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <select
+                    className="form-control"
+                    value={form.departure_hour}
+                    onChange={(e) => setForm({ ...form, departure_hour: e.target.value })}
+                    required
+                    aria-label="ชั่วโมง"
+                  >
+                    <option value="">ชั่วโมง</option>
+                    {Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, "0")).map((hour) => (
+                      <option key={hour} value={hour}>{hour}</option>
+                    ))}
+                  </select>
+                  <span aria-hidden="true">:</span>
+                  <select
+                    className="form-control"
+                    value={form.departure_minute}
+                    onChange={(e) => setForm({ ...form, departure_minute: e.target.value })}
+                    required
+                    aria-label="นาที"
+                  >
+                    <option value="">นาที</option>
+                    {Array.from({ length: 60 }, (_, minute) => String(minute).padStart(2, "0")).map((minute) => (
+                      <option key={minute} value={minute}>{minute}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="form-group">
                 <label className="form-label">เส้นทาง *</label>

@@ -5,6 +5,28 @@ const router = express.Router();
 const { withDb, q, one, all } = require("../config/db");
 const { err, SCHEDULE_SQL, mapSchedule } = require("../utils/helpers");
 
+async function findDriverConflict(conn, driverId, dt, excludeScheduleId) {
+  const exclude = excludeScheduleId ? "AND schedule_id <> :exclude_schedule_id" : "";
+  const binds = { driver_id: Number(driverId), dt };
+  if (excludeScheduleId) binds.exclude_schedule_id = excludeScheduleId;
+
+  return one(
+    conn,
+    `SELECT schedule_id
+       FROM Schedule
+      WHERE driver_id = :driver_id
+        AND departure_time >= TO_TIMESTAMP(:dt,'YYYY-MM-DD HH24:MI:SS')
+        AND departure_time < TO_TIMESTAMP(:dt,'YYYY-MM-DD HH24:MI:SS') + NUMTODSINTERVAL(1,'MINUTE')
+        AND status <> 'cancelled'
+        ${exclude}`,
+    binds
+  );
+}
+
+function driverConflictMessage(scheduleId) {
+  return `คนขับมีรอบขับรถแล้วในเวลาเดียวกัน (รอบ ${scheduleId}) ไม่สามารถบันทึกได้`;
+}
+
 router.get("/api/schedules", async (req, res) => {
   try {
     await withDb(async (conn) => {
@@ -56,6 +78,12 @@ router.post("/api/schedules", async (req, res) => {
       if (exists) {
         return res.status(409).json({ message: `รหัสรอบ "${schedule_id}" มีอยู่แล้ว กรุณาใช้รหัสอื่น` });
       }
+      if (status !== "cancelled") {
+        const conflict = await findDriverConflict(conn, driver_id, dt);
+        if (conflict) {
+          return res.status(409).json({ message: driverConflictMessage(conflict.SCHEDULE_ID) });
+        }
+      }
       try {
         await q(
           conn,
@@ -87,6 +115,22 @@ router.post("/api/schedules", async (req, res) => {
 router.patch("/api/schedules/:id/status", async (req, res) => {
   try {
     await withDb(async (conn) => {
+      if (req.body.status !== "cancelled") {
+        const conflict = await one(
+          conn,
+          `SELECT other.schedule_id
+             FROM Schedule current_schedule, Schedule other
+            WHERE current_schedule.schedule_id = :id
+              AND other.driver_id = current_schedule.driver_id
+              AND other.schedule_id <> current_schedule.schedule_id
+              AND other.status <> 'cancelled'
+              AND TRUNC(other.departure_time, 'MI') = TRUNC(current_schedule.departure_time, 'MI')`,
+          { id: req.params.id }
+        );
+        if (conflict) {
+          return res.status(409).json({ message: driverConflictMessage(conflict.SCHEDULE_ID) });
+        }
+      }
       await q(conn, `UPDATE Schedule SET status=:status WHERE schedule_id=:id`, {
         status: req.body.status,
         id: req.params.id,
@@ -106,6 +150,12 @@ router.put("/api/schedules/:id", async (req, res) => {
     }
     const dt = String(departure_time).replace("T", " ").replace(/\.\d+Z?$/, "").slice(0, 19);
     await withDb(async (conn) => {
+      if (status !== "cancelled") {
+        const conflict = await findDriverConflict(conn, driver_id, dt, req.params.id);
+        if (conflict) {
+          return res.status(409).json({ message: driverConflictMessage(conflict.SCHEDULE_ID) });
+        }
+      }
       await q(
         conn,
         `UPDATE Schedule
