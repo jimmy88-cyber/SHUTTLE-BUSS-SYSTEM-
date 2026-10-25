@@ -29,12 +29,17 @@ router.get("/api/bookings", async (req, res) => {
 
 router.get("/api/bookings/by-qr/:qr", async (req, res) => {
   try {
+    const qr = req.params.qr;
+    const legacyBookingId =
+      /^MUT-(\d+)$/i.exec(qr)?.[1] ||
+      /^MUT-\d+-.+-LEGACY-(\d+)$/i.exec(qr)?.[1] ||
+      qr;
     await withDb(async (conn) => {
       const seed = await one(
         conn,
-        BOOKING_SQL + ` AND (Booking.qr_code = :qr OR Booking.booking_id = :qr)
+        BOOKING_SQL + ` AND (Booking.qr_code = :qr OR Booking.booking_id = :booking_id)
                         AND Booking.status IN ('booked', 'checked_in')`,
-        { qr: req.params.qr }
+        { qr, booking_id: legacyBookingId }
       );
       if (!seed) return res.status(404).json({ message: "ไม่พบ QR นี้" });
       const rows = await all(
@@ -113,7 +118,10 @@ router.post("/api/bookings", async (req, res) => {
            AND status IN ('booked', 'checked_in')`,
         { user_id: Number(user_id), schedule_id }
       );
-      const qr_code = existingQr.QR_CODE || `MUT-${Number(user_id)}-${schedule_id}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+      const qr_code =
+        existingQr.QR_CODE && /^MUT-[^-]+-[^-]+-[^-]+$/i.test(existingQr.QR_CODE)
+          ? existingQr.QR_CODE
+          : `MUT-${Number(user_id)}-${schedule_id}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
       let n = next.ID;
       try {
         await q(

@@ -130,11 +130,16 @@ async function mapSchedule(conn, s) {
 }
 
 function mapBooking(r) {
+  const storedQr = String(r.QR_CODE || "");
+  const qrCode = /^MUT-\d+$/i.test(storedQr)
+    ? `MUT-${r.USER_ID}-${r.SCHEDULE_ID}-LEGACY-${r.BOOKING_ID}`
+    : r.QR_CODE;
+
   return {
     booking_id: r.BOOKING_ID,
     num_seats: r.NUM_SEATS,
     status: r.STATUS,
-    qr_code: r.QR_CODE,
+    qr_code: qrCode,
     booked_at: iso(r.BOOKED_AT),
     boarded: r.BOARDED > 0,
     user: {
