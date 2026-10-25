@@ -3,6 +3,7 @@ import { api } from "../../api/client";
 import AdminLayout from "../../components/AdminLayout";
 import SortableHeader from "../../components/SortableHeader";
 import { useSortableRows } from "../../hooks/useSortableRows";
+import { getPermissionBits } from "../../permissions";
 
 const STATUS_OPTS = [
   { value: "planned", label: "รอออก (planned)" },
@@ -72,7 +73,17 @@ export default function AdminTrips() {
     api.getVehicles().then(setVehicles).catch(console.error);
     api
       .getUsers()
-      .then((u) => setDrivers(u.filter((x) => x.position?.position_id === "03")))
+      // คนขับ = พนักงานที่ตำแหน่งมีสิทธิ์ "หน้าคนขับ" (หลักที่ 10) ไม่ผูกกับรหัสตำแหน่ง
+      .then((u) =>
+        setDrivers(
+          u.filter(
+            (x) =>
+              x.user_type !== "passenger" &&
+              x.position?.position_id &&
+              getPermissionBits(x.position.permission, x.position.position_id)[9] === "1"
+          )
+        )
+      )
       .catch(console.error);
   }
   useEffect(load, []);

@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useLocation } from "react-router-dom";
-import { getUser, clearUser } from "../api/auth";
+import { clearUser } from "../api/auth";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import { getPermissionBits } from "../permissions";
 import DriverNav from "./DriverNav";
 
@@ -19,24 +19,17 @@ const MENU = [
 ];
 
 export default function AdminLayout({ title, subtitle, children }) {
-  const [user, setUser] = useState(getUser);
+  const user = useCurrentUser();
   const navigate = useNavigate();
   const location = useLocation();
-
-  useEffect(() => {
-    function refreshUser() {
-      setUser(getUser());
-    }
-    window.addEventListener("shuttle-user-change", refreshUser);
-    return () => window.removeEventListener("shuttle-user-change", refreshUser);
-  }, []);
 
   if (!user) {
     return <Navigate to="/" replace />;
   }
 
-  const isDriver = String(user.position_id || "").padStart(2, "0") === "03";
   const permission = getPermissionBits(user.permission, user.position_id);
+  // ใช้หน้าจอแบบมือถือของคนขับ เมื่อตำแหน่งมีสิทธิ์หน้าคนขับแต่ไม่มีสิทธิ์แดชบอร์ด (ไม่ผูกกับรหัสตำแหน่ง)
+  const isDriver = permission[9] === "1" && permission[0] !== "1";
   function hasAccess(item) {
     if (item.path === "/driver") {
       return permission[9] === "1";

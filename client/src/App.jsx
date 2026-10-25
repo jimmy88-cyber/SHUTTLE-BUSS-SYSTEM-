@@ -1,5 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { getUser } from "./api/auth";
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { refreshUser } from "./api/auth";
+import { useCurrentUser } from "./hooks/useCurrentUser";
 import { getFirstPermittedPath, getPermissionBits } from "./permissions";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -19,8 +21,30 @@ import AdminBoarding from "./pages/admin/AdminBoarding";
 import AdminReports from "./pages/admin/AdminReports";
 import "./index.css";
 
+const REFRESH_INTERVAL_MS = 30000;
+
+/** ตรวจสิทธิ์ล่าสุดจาก server ทุกครั้งที่เปลี่ยนหน้า กลับมาที่แท็บ และทุก 30 วินาที */
+function PermissionSync() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    refreshUser();
+  }, [pathname]);
+
+  useEffect(() => {
+    window.addEventListener("focus", refreshUser);
+    const timer = setInterval(refreshUser, REFRESH_INTERVAL_MS);
+    return () => {
+      window.removeEventListener("focus", refreshUser);
+      clearInterval(timer);
+    };
+  }, []);
+
+  return null;
+}
+
 function PermissionRoute({ bit, requiredBits = [], children, allowPassenger = false }) {
-  const user = getUser();
+  const user = useCurrentUser();
   if (!user) return <Navigate to="/" replace />;
   if (allowPassenger && user.user_type === "passenger") return children;
 
@@ -32,6 +56,7 @@ function PermissionRoute({ bit, requiredBits = [], children, allowPassenger = fa
 export default function App() {
   return (
     <BrowserRouter>
+      <PermissionSync />
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />

@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { getUser } from "../api/auth";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import { getPermissionBits } from "../permissions";
 
 const ADMIN_LINKS = [
@@ -17,7 +16,7 @@ const ADMIN_LINKS = [
 
 export default function DriverNav() {
   const { pathname } = useLocation();
-  const [user, setUser] = useState(getUser);
+  const user = useCurrentUser();
   const permission = getPermissionBits(user?.permission, user?.position_id);
   const permittedLinks = [
     ...(permission[9] === "1"
@@ -28,14 +27,6 @@ export default function DriverNav() {
       ? [{ path: "/home", icon: "👤", label: "ผู้ใช้บริการ" }]
       : []),
   ];
-
-  useEffect(() => {
-    function refreshUser() {
-      setUser(getUser());
-    }
-    window.addEventListener("shuttle-user-change", refreshUser);
-    return () => window.removeEventListener("shuttle-user-change", refreshUser);
-  }, []);
 
   return (
     <nav className={`m-nav driver-nav${permittedLinks.length > 6 ? " driver-nav-many" : ""}`}>

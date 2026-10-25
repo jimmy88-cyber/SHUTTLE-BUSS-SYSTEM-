@@ -15,3 +15,25 @@ export const clearUser = () => {
   localStorage.removeItem(KEY);
   window.dispatchEvent(new Event("shuttle-user-change"));
 };
+
+/**
+ * ดึงตำแหน่ง/สิทธิ์ล่าสุดจาก server แล้วอัปเดตผู้ใช้ที่ login อยู่
+ * ทำให้การแก้ไขสิทธิ์ของตำแหน่งมีผลทันที โดยไม่ต้อง login ใหม่
+ */
+export async function refreshUser() {
+  const user = getUser();
+  if (!user?.user_id) return;
+  try {
+    const res = await fetch("/api/me/" + encodeURIComponent(user.user_id));
+    if (res.status === 404) {
+      clearUser();
+      return;
+    }
+    if (!res.ok) return;
+    const { user: latest } = await res.json();
+    const merged = { ...user, ...latest };
+    if (JSON.stringify(merged) !== JSON.stringify(user)) saveUser(merged);
+  } catch {
+    // ต่อ server ไม่ได้ ใช้ข้อมูลเดิมไปก่อน
+  }
+}

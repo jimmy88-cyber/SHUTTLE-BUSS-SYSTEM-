@@ -6,6 +6,45 @@ const { withDb, q, one, all } = require("../config/db");
 const { err, normalizePermission, isValidPermission } = require("../utils/helpers");
 const bcrypt = require("bcryptjs");
 
+/* ---------- กันล็อกตัวเอง: ต้องเหลือพนักงานอย่างน้อย 1 คนที่เข้าหน้า "พนักงาน" (จัดการสิทธิ์) ได้ ---------- */
+const EMPLOYEES_BIT = 6;
+const LOCKOUT_MESSAGE =
+  "ทำไม่ได้: หลังบันทึกจะไม่เหลือพนักงานคนไหนที่มีสิทธิ์หน้า \"พนักงาน\" เลย จะไม่มีใครกลับมาแก้สิทธิ์ได้อีก";
+
+/**
+ * จำลองการเปลี่ยนแปลงแล้วตรวจว่ายังมีคนจัดการสิทธิ์เหลืออยู่ไหม
+ * change: { positionId, permission } | { deletePositionId } | { userId, positionId } | { deleteUserId }
+ */
+async function wouldLockOut(conn, change) {
+  const positions = {};
+  for (const r of await all(conn, `SELECT position_id, permission FROM Position`)) {
+    positions[String(r.POSITION_ID)] = normalizePermission(r.PERMISSION, r.POSITION_ID);
+  }
+  const staff = (await all(conn, `SELECT user_id, position_id FROM AppUser WHERE position_id IS NOT NULL`)).map(
+    (r) => ({ userId: String(r.USER_ID), positionId: String(r.POSITION_ID) })
+  );
+  const canManage = (pos, list) => list.filter((u) => pos[u.positionId]?.[EMPLOYEES_BIT] === "1").length;
+  const before = canManage(positions, staff);
+
+  const nextPositions = { ...positions };
+  let nextStaff = staff;
+  if (change.permission !== undefined) {
+    nextPositions[String(change.positionId)] = normalizePermission(change.permission, change.positionId);
+  }
+  if (change.deletePositionId !== undefined) {
+    delete nextPositions[String(change.deletePositionId)];
+  }
+  if (change.userId !== undefined) {
+    nextStaff = staff.map((u) =>
+      u.userId === String(change.userId) ? { ...u, positionId: String(change.positionId) } : u
+    );
+  }
+  if (change.deleteUserId !== undefined) {
+    nextStaff = staff.filter((u) => u.userId !== String(change.deleteUserId));
+  }
+  return before > 0 && canManage(nextPositions, nextStaff) === 0;
+}
+
 router.get("/api/stops", async (_req, res) => {
   try {
     await withDb(async (conn) => {
@@ -375,6 +414,9 @@ router.put("/api/positions/:id", async (req, res) => {
     }
     const normalizedPermission = normalizePermission(permission, req.params.id);
     await withDb(async (conn) => {
+      if (await wouldLockOut(conn, { positionId: req.params.id, permission: normalizedPermission })) {
+        return res.status(400).json({ message: LOCKOUT_MESSAGE });
+      }
       await q(
         conn,
         `UPDATE Position SET name = :name, permission = :permission WHERE position_id = :id`,
@@ -390,6 +432,9 @@ router.put("/api/positions/:id", async (req, res) => {
 router.delete("/api/positions/:id", async (req, res) => {
   try {
     await withDb(async (conn) => {
+      if (await wouldLockOut(conn, { deletePositionId: req.params.id })) {
+        return res.status(400).json({ message: LOCKOUT_MESSAGE });
+      }
       await q(conn, `DELETE FROM Position WHERE position_id = :id`, { id: req.params.id });
       res.json({ message: "ลบตำแหน่งสำเร็จ" });
     });
@@ -439,6 +484,9 @@ router.put("/api/employees/:id", async (req, res) => {
       return res.status(400).json({ message: "ข้อมูลไม่ครบ" });
     }
     await withDb(async (conn) => {
+      if (await wouldLockOut(conn, { userId: req.params.id, positionId: position_id })) {
+        return res.status(400).json({ message: LOCKOUT_MESSAGE });
+      }
       if (password) {
         const hash = await bcrypt.hash(String(password), 10);
         await q(
@@ -481,6 +529,9 @@ router.put("/api/employees/:id", async (req, res) => {
 router.delete("/api/employees/:id", async (req, res) => {
   try {
     await withDb(async (conn) => {
+      if (await wouldLockOut(conn, { deleteUserId: req.params.id })) {
+        return res.status(400).json({ message: LOCKOUT_MESSAGE });
+      }
       await q(conn, `DELETE FROM AppUser WHERE user_id = :id`, { id: Number(req.params.id) });
       res.json({ message: "ลบพนักงานสำเร็จ" });
     });
