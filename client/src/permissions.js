@@ -1,5 +1,5 @@
 export const PERMISSION_OPTIONS = [
-  { key: "dashboardReports", label: "แดชบอร์ด / รายงาน", path: "/admin", icon: "📊" },
+  { key: "dashboard", label: "แดชบอร์ด", path: "/admin", icon: "📊" },
   { key: "vehicles", label: "จัดการรถและประเภท", path: "/admin/vehicles", icon: "🚌" },
   { key: "routes", label: "เส้นทาง", path: "/admin/routes", icon: "🗺️" },
   { key: "trips", label: "รอบรถ", path: "/admin/trips", icon: "📅" },
@@ -9,6 +9,7 @@ export const PERMISSION_OPTIONS = [
   { key: "boarding", label: "ขึ้นรถ", path: "/admin/boarding", icon: "✅" },
   { key: "passengerPortal", label: "หน้าผู้ใช้บริการ", path: "/home", icon: "👤" },
   { key: "driverPortal", label: "หน้าคนขับ", path: "/driver", icon: "🚌" },
+  { key: "reports", label: "รายงาน", path: "/admin/reports", icon: "📈" },
 ];
 
 export const PERMISSION_COUNT = PERMISSION_OPTIONS.length;
@@ -24,21 +25,21 @@ function toTenBits(bits14) {
 
 export function getPermissionBits(permission, positionId) {
   const value = String(permission || "").trim();
-  if (/^[01]{10}$/.test(value)) return value;
+  if (/^[01]{11}$/.test(value)) return value;
+  const ten = /^[01]{10}$/.test(value) ? value : legacyToTenBits(value, positionId);
+  // รหัสก่อนแยกสิทธิ์รายงาน: ให้หน้ารายงานใช้สิทธิ์เดียวกับแดชบอร์ดเหมือนเดิม
+  return ten + ten[0];
+}
+
+/** แปลงรหัสสิทธิ์รูปแบบเก่า (6/8/14 หลัก) เป็นแบบ 10 หลัก */
+function legacyToTenBits(value, positionId) {
   if (/^[01]{14}$/.test(value)) return toTenBits(value);
   if (/^[01]{8}$/.test(value)) {
     return `${value}${value[2] === "1" || value[4] === "1" ? "1" : "0"}${value[3]}`;
   }
 
   let legacy;
-  if (/^[01]{11}$/.test(value)) {
-    legacy = [
-      value[0] === "1" || value[8] === "1" ? "1" : "0",
-      value.slice(1, 8),
-      value[9],
-      value[10],
-    ].join("");
-  } else if (/^[01]{0,6}$/.test(value)) {
+  if (/^[01]{0,6}$/.test(value)) {
     const old = value.padEnd(6, "0").slice(0, 6);
     const isDriver = String(positionId || "").padStart(2, "0") === "03";
     legacy = [
@@ -46,7 +47,7 @@ export function getPermissionBits(permission, positionId) {
       "0", "0", "0", isDriver ? "1" : "0", isDriver ? "1" : "0",
     ].join("");
   } else {
-    throw new Error("รหัสสิทธิ์ต้องเป็นรูปแบบเดิม 6/8/11/14 หลัก หรือรูปแบบใหม่ 10 หลัก");
+    throw new Error("รหัสสิทธิ์ต้องเป็นรูปแบบเดิม 6/8/10/14 หลัก หรือรูปแบบใหม่ 11 หลัก");
   }
 
   return toTenBits(legacy);

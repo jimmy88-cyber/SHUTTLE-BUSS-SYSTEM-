@@ -1,13 +1,21 @@
 const bcrypt = require("bcryptjs");
 const { one } = require("../config/db");
 
-const PERMISSION_COUNT = 10;
+const PERMISSION_COUNT = 11;
 
-/** แปลงรหัสสิทธิ์รูปแบบเก่าให้เป็น 10 หลัก */
+/**
+ * แปลงรหัสสิทธิ์ให้เป็น 11 หลัก (หลักที่ 11 = หน้ารายงาน)
+ * รหัส 10 หลักแบบก่อนแยกสิทธิ์รายงาน ให้หน้ารายงานใช้สิทธิ์เดียวกับแดชบอร์ด
+ */
 function normalizePermission(permission, positionId) {
   const value = String(permission || "").trim();
   if (new RegExp(`^[01]{${PERMISSION_COUNT}}$`).test(value)) return value;
+  const ten = /^[01]{10}$/.test(value) ? value : legacyToTenBits(value, positionId);
+  return ten + ten[0];
+}
 
+/** แปลงรหัสสิทธิ์รูปแบบเก่า (6/8/14 หลัก) เป็นแบบ 10 หลัก */
+function legacyToTenBits(value, positionId) {
   if (/^[01]{14}$/.test(value)) {
     return [
       value[0] === "1" || value[8] === "1" ? "1" : "0",
@@ -17,21 +25,12 @@ function normalizePermission(permission, positionId) {
     ].join("");
   }
 
-  if (/^[01]{11}$/.test(value)) {
-    return [
-      value[0] === "1" || value[8] === "1" ? "1" : "0",
-      value.slice(1, 8),
-      value[9],
-      value[10],
-    ].join("");
-  }
-
   if (/^[01]{8}$/.test(value)) {
     return `${value}${value[2] === "1" || value[4] === "1" ? "1" : "0"}${value[3]}`;
   }
 
   if (!/^[01]{0,6}$/.test(value)) {
-    throw new Error("รหัสสิทธิ์ต้องเป็นเลข 0 หรือ 1 จำนวน 10 หลัก");
+    throw new Error("รหัสสิทธิ์ต้องเป็นเลข 0 หรือ 1 จำนวน 11 หลัก");
   }
 
   const old = value.padEnd(6, "0");

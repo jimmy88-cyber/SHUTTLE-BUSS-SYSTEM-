@@ -11,7 +11,7 @@ const ADMIN_LINKS = [
   { bit: 5, path: "/admin/users", icon: "🧑‍🎓", label: "ผู้ใช้บริการ" },
   { bit: 6, path: "/admin/employees", icon: "👥", label: "พนักงาน" },
   { bit: 7, path: "/admin/boarding", icon: "✅", label: "ขึ้นรถ" },
-  { bit: 0, path: "/admin/reports", icon: "📈", label: "รายงาน" },
+  { bit: 10, path: "/admin/reports", icon: "📈", label: "รายงาน" },
 ];
 
 export default function DriverNav() {

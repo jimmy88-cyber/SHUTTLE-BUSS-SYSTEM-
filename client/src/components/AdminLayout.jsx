@@ -13,7 +13,7 @@ const MENU = [
   { path: "/admin/users", label: "🧑‍🎓 ผู้ใช้บริการ", bit: 5 },
   { path: "/admin/employees", label: "👥 พนักงาน", bit: 6 },
   { path: "/admin/boarding", label: "✅ ขึ้นรถ", bit: 7 },
-  { path: "/admin/reports", label: "📈 รายงาน", bit: 0 },
+  { path: "/admin/reports", label: "📈 รายงาน", bit: 10 },
   { path: "/home", label: "👤 หน้าผู้ใช้บริการ", bit: 8 },
   { path: "/driver", label: "🚌 หน้าคนขับ", bit: 9, exact: true },
 ];

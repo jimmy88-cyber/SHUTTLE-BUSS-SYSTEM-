@@ -389,7 +389,7 @@ router.post("/api/positions", async (req, res) => {
     const { position_id, name, permission } = req.body;
     if (!position_id || !name) return res.status(400).json({ message: "ข้อมูลไม่ครบ" });
     if (!isValidPermission(permission)) {
-      return res.status(400).json({ message: "รหัสสิทธิ์ต้องมี 10 หลัก และใช้เฉพาะ 0 หรือ 1" });
+      return res.status(400).json({ message: "รหัสสิทธิ์ต้องมี 11 หลัก และใช้เฉพาะ 0 หรือ 1" });
     }
     const normalizedPermission = normalizePermission(permission, position_id);
     await withDb(async (conn) => {
@@ -410,7 +410,7 @@ router.put("/api/positions/:id", async (req, res) => {
     const { name, permission } = req.body;
     if (!name) return res.status(400).json({ message: "กรุณาระบุชื่อตำแหน่ง" });
     if (!isValidPermission(permission)) {
-      return res.status(400).json({ message: "รหัสสิทธิ์ต้องมี 10 หลัก และใช้เฉพาะ 0 หรือ 1" });
+      return res.status(400).json({ message: "รหัสสิทธิ์ต้องมี 11 หลัก และใช้เฉพาะ 0 หรือ 1" });
     }
     const normalizedPermission = normalizePermission(permission, req.params.id);
     await withDb(async (conn) => {
@@ -432,6 +432,12 @@ router.put("/api/positions/:id", async (req, res) => {
 router.delete("/api/positions/:id", async (req, res) => {
   try {
     await withDb(async (conn) => {
+      const used = await one(conn, `SELECT COUNT(*) n FROM AppUser WHERE position_id = :id`, { id: req.params.id });
+      if (used.N > 0) {
+        return res.status(400).json({
+          message: `ลบไม่ได้: ยังมีพนักงาน ${used.N} คนใช้ตำแหน่งนี้อยู่ กรุณาย้ายพนักงานไปตำแหน่งอื่นก่อน`,
+        });
+      }
       if (await wouldLockOut(conn, { deletePositionId: req.params.id })) {
         return res.status(400).json({ message: LOCKOUT_MESSAGE });
       }
