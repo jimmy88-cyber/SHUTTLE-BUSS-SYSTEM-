@@ -107,6 +107,8 @@ export default function AdminEmployees() {
 
   // ---- Position ----
   function openPosAdd() {
+    setError("");
+    setMsg("");
     setPosEditId(null);
     setPosForm({
       position_id: nextCode(positions, "position_id", 2),
@@ -116,6 +118,8 @@ export default function AdminEmployees() {
     setPosModal(true);
   }
   function openPosEdit(p) {
+    setError("");
+    setMsg("");
     setPosEditId(p.position_id);
     setPosForm({
       position_id: p.position_id,
@@ -160,11 +164,15 @@ export default function AdminEmployees() {
 
   // ---- Department ----
   function openDeptAdd() {
+    setError("");
+    setMsg("");
     setDeptEditId(null);
     setDeptForm({ department_id: nextCode(departments, "department_id", 2), name: "" });
     setDeptModal(true);
   }
   function openDeptEdit(d) {
+    setError("");
+    setMsg("");
     setDeptEditId(d.department_id);
     setDeptForm({ department_id: d.department_id, name: d.name });
     setDeptModal(true);
@@ -197,6 +205,8 @@ export default function AdminEmployees() {
 
   // ---- Employee ----
   function openEmpAdd() {
+    setError("");
+    setMsg("");
     setEmpEditId(null);
     setEmpForm({
       user_id: null,
@@ -210,6 +220,8 @@ export default function AdminEmployees() {
     setEmpModal(true);
   }
   function openEmpEdit(u) {
+    setError("");
+    setMsg("");
     setEmpEditId(u.user_id);
     setEmpForm({
       user_id: u.user_id,
@@ -391,6 +403,7 @@ export default function AdminEmployees() {
               <button type="button" className="close-btn" onClick={() => setPosModal(false)}>×</button>
             </div>
             <form onSubmit={savePos}>
+              {error && <div className="error-msg">{error}</div>}
               {!posEditId && (
                 <div className="form-group">
                   <label className="form-label">รหัสตำแหน่ง *</label>
@@ -430,6 +443,7 @@ export default function AdminEmployees() {
               <button type="button" className="close-btn" onClick={() => setDeptModal(false)}>×</button>
             </div>
             <form onSubmit={saveDept}>
+              {error && <div className="error-msg">{error}</div>}
               {!deptEditId && (
                 <div className="form-group">
                   <label className="form-label">รหัสแผนก *</label>
@@ -458,6 +472,7 @@ export default function AdminEmployees() {
               <button type="button" className="close-btn" onClick={() => setEmpModal(false)}>×</button>
             </div>
             <form onSubmit={saveEmp}>
+              {error && <div className="error-msg">{error}</div>}
               <div className="form-group">
                 <label className="form-label">รหัสพนักงาน *</label>
                 <input

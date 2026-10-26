@@ -393,6 +393,9 @@ router.post("/api/positions", async (req, res) => {
     }
     const normalizedPermission = normalizePermission(permission, position_id);
     await withDb(async (conn) => {
+      if (await one(conn, `SELECT position_id FROM Position WHERE position_id = :id`, { id: position_id })) {
+        return res.status(409).json({ message: `รหัสตำแหน่ง "${position_id}" มีอยู่แล้ว กรุณาใช้รหัสอื่น` });
+      }
       await q(
         conn,
         `INSERT INTO Position (position_id, name, permission) VALUES (:position_id, :name, :permission)`,
