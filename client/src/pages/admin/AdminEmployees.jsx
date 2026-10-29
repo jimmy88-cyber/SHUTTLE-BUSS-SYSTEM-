@@ -134,6 +134,8 @@ export default function AdminEmployees() {
     try {
       if (posEditId) {
         await api.updatePosition(posEditId, { name: posForm.name, permission: posForm.permission });
+        // ถ้าแก้ตำแหน่งของผู้ใช้ที่กำลัง Login ให้อัปเดตข้อมูลใน browser ทันที
+        // เพื่อให้เมนูและ route guard ใช้ permission ชุดใหม่โดยไม่ต้อง Login ใหม่
         const user = getUser();
         if (String(user?.position_id) === String(posEditId)) {
           saveUser({

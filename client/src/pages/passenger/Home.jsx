@@ -7,11 +7,13 @@ import BottomNav from '../../components/BottomNav';
 export default function Home() {
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
+  // อ่านบัญชี Login เพื่อแสดงชื่อผู้ใช้และใช้กับการออกจากระบบ
   const user = getUser();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!user) {
+      // ป้องกันการแสดงข้อมูลหน้าผู้โดยสารเมื่อไม่มีสถานะ Login
       navigate('/');
       return;
     }
@@ -21,9 +23,14 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
 
+  // ออกจากระบบของหน้าผู้ใช้บริการ
   function logout() {
+    // ถ้าผู้ใช้ไม่ยืนยัน ให้หยุดและไม่เปลี่ยนสถานะ
+    // Logout ของผู้โดยสาร: ต้องยืนยันก่อนลบสถานะ Login
     if (!confirm('ต้องการออกจากระบบ?')) return;
+    // ลบข้อมูล login ปัจจุบันออกจาก localStorage
     clearUser();
+    // กลับไปที่หน้า Login
     navigate('/');
   }
 
@@ -42,6 +49,7 @@ export default function Home() {
             <p>จองรถรับส่ง MUT</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* เรียก logout เมื่อผู้ใช้กดปุ่มออก */}
             <button className="m-btn m-btn-ghost" onClick={logout}>ออก</button>
             <div className="avatar">{user.first_name?.charAt(0)}</div>
           </div>

@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { getUser } from "../api/auth";
 
-/** ผู้ใช้ที่ login อยู่ และ render ใหม่ทุกครั้งที่ข้อมูลผู้ใช้/สิทธิ์เปลี่ยน */
+/**
+ * Hook อ่านผู้ใช้ที่ Login อยู่จาก localStorage และติดตาม event ที่ saveUser/clearUser
+ * เมื่อ Login, Logout หรือข้อมูลสิทธิ์เปลี่ยน component ที่ใช้ hook นี้จะ render ใหม่
+ */
 export function useCurrentUser() {
   const [user, setUser] = useState(getUser);
 

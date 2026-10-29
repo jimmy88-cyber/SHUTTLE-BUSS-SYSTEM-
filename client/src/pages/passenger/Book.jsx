@@ -36,6 +36,7 @@ function dropOptions(stops, pickupId) {
 }
 
 export default function Book() {
+  // หน้า route ถูกป้องกันใน App.jsx; อ่านข้อมูลผู้ใช้เพื่อผูกการจองกับบัญชี
   const user = getUser();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -50,7 +51,9 @@ export default function Book() {
   const [mySeats, setMySeats] = useState({}); // schedule_id → จำนวนที่นั่งที่ผู้ใช้จองไว้แล้ว
 
   useEffect(() => {
+    // guard เพิ่มในหน้า: ไม่มีข้อมูล Login ให้กลับไปหน้าเริ่มต้น
     if (!user) return navigate("/");
+    // โหลดเส้นทางหลังจากตรวจพบผู้ใช้ที่ Login อยู่
     api.getRoutes().then(setRoutes).catch((e) => alert(e.message));
   }, []);
 

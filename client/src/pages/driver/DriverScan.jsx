@@ -11,6 +11,7 @@ function timeOnly(iso) {
 }
 
 export default function DriverScan() {
+  // ใช้ข้อมูล Login เพื่อระบุคนขับและตรวจสิทธิ์หน้ารอบรถ
   const user = getUser();
   const userId = user?.user_id;
   const canViewTrips = getPermissionBits(user?.permission, user?.position_id)[3] === "1";
@@ -35,6 +36,7 @@ export default function DriverScan() {
 
   useEffect(() => {
     if (!userId) {
+      // ไม่มีผู้ใช้ที่ Login ให้กลับหน้า Login แทนการโหลดข้อมูลคนขับ
       navigate("/");
       return;
     }

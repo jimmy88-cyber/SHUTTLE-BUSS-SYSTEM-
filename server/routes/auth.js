@@ -1,4 +1,5 @@
-/* AUTH – login / register */
+/* AUTH – ตรวจบัญชี Login, สมัครสมาชิก และดึงข้อมูลผู้ใช้/permission ล่าสุด
+ * ระบบนี้ไม่มี endpoint สำหรับ Logout แยก เพราะ client ล้างสถานะใน browser */
 
 const express = require("express");
 const router = express.Router();
@@ -13,6 +14,8 @@ const USER_SQL = `SELECT AppUser.user_id, AppUser.username, AppUser.password, Ap
          WHERE AppUser.position_id = Position.position_id(+)`;
 
 function mapUser(row) {
+  // แปลงคอลัมน์ฐานข้อมูลเป็น object ที่ client ใช้ รวม permission ของตำแหน่ง
+  // รหัสผ่านไม่ถูกส่งกลับไปยัง client
   return {
     user_id: row.USER_ID,
     username: row.USERNAME,
@@ -30,17 +33,21 @@ function mapUser(row) {
 router.post("/api/login", async (req, res) => {
   try {
     const { username, password } = req.body;
+    // ปฏิเสธคำขอที่ไม่มี username หรือ password ก่อนค้นฐานข้อมูล
     if (!username || !password) return res.status(400).json({ message: "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน" });
 
     await withDb(async (conn) => {
+      // ค้นหาได้ทั้งจาก username หรือ email ด้วย bind variable
       const row = await one(
         conn,
         USER_SQL + ` AND (AppUser.username = :username OR AppUser.email = :username)`,
         { username }
       );
+      // ไม่พบผู้ใช้หรือ password hash ไม่ตรง ให้ตอบ Unauthorized
       if (!row || !(await checkPassword(password, row.PASSWORD))) {
         return res.status(401).json({ message: "รหัสผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" });
       }
+      // เมื่อผ่านการตรวจสอบ ส่งข้อมูลผู้ใช้และ permission กลับให้ client เลือกหน้า
       res.json({ message: "Login successful", user: mapUser(row) });
     });
   } catch (e) {
@@ -48,7 +55,7 @@ router.post("/api/login", async (req, res) => {
   }
 });
 
-/* ดึงตำแหน่งและสิทธิ์ล่าสุดของผู้ใช้ เพื่อให้สิทธิ์ที่แก้ไขมีผลทันทีโดยไม่ต้อง login ใหม่ */
+/* ดึงข้อมูลบัญชี ตำแหน่ง และ permission ล่าสุดให้ client ซิงก์ระหว่างใช้งาน */
 router.get("/api/me/:id", async (req, res) => {
   try {
     await withDb(async (conn) => {
@@ -64,14 +71,17 @@ router.get("/api/me/:id", async (req, res) => {
 router.post("/api/register", async (req, res) => {
   try {
     const { username, password, first_name, last_name, email } = req.body;
+    // บังคับข้อมูลหลักที่จำเป็นต่อการสร้างบัญชีผู้ใช้บริการ
     if (!username || !password || !first_name || !last_name) {
       return res.status(400).json({ message: "กรุณากรอกข้อมูลให้ครบ" });
     }
     await withDb(async (conn) => {
+      // ป้องกันการสมัครซ้ำด้วย username ที่มีอยู่แล้ว
       if (await one(conn, `SELECT user_id FROM AppUser WHERE username=:username`, { username })) {
         return res.status(400).json({ message: "ชื่อผู้ใช้นี้ถูกใช้แล้ว" });
       }
       const next = await one(conn, `SELECT NVL(MAX(user_id),1000)+1 id FROM AppUser`);
+      // เก็บ password เป็น hash ก่อนบันทึก และกำหนดบัญชีใหม่เป็น passenger
       const hash = await bcrypt.hash(password, 10);
       await q(
         conn,

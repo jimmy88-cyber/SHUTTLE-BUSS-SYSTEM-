@@ -19,18 +19,22 @@ const MENU = [
 ];
 
 export default function AdminLayout({ title, subtitle, children }) {
+  // อ่านผู้ใช้แบบ reactive เพื่อให้หน้าเปลี่ยนทันทีเมื่อ Login/Logout หรือสิทธิ์ถูกอัปเดต
   const user = useCurrentUser();
   const navigate = useNavigate();
   const location = useLocation();
 
   if (!user) {
+    // ไม่มีสถานะ Login ให้กลับไปหน้า Login
     return <Navigate to="/" replace />;
   }
 
   const permission = getPermissionBits(user.permission, user.position_id);
   // ใช้หน้าจอแบบมือถือของคนขับ เมื่อตำแหน่งมีสิทธิ์หน้าคนขับแต่ไม่มีสิทธิ์แดชบอร์ด (ไม่ผูกกับรหัสตำแหน่ง)
   const isDriver = permission[9] === "1" && permission[0] !== "1";
+  // ตรวจ permission bit ของแต่ละรายการ เพื่อใช้ทั้งกรองเมนูและป้องกัน URL ที่ไม่มีสิทธิ์
   function hasAccess(item) {
+    // หน้าคนขับพิจารณาสิทธิ์คนขับโดยตรง
     if (item.path === "/driver") {
       return permission[9] === "1";
     }
@@ -43,13 +47,18 @@ export default function AdminLayout({ title, subtitle, children }) {
       : location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)
   );
   if (currentPage && !hasAccess(currentPage)) {
+    // ถ้าเปิด URL ที่ไม่มีสิทธิ์ ให้ redirect ไปเมนูแรกที่ได้รับอนุญาต
     const firstAllowedPage = MENU.find(hasAccess);
     return <Navigate to={firstAllowedPage?.path || "/"} replace />;
   }
 
+  // ออกจากระบบหลังผู้ใช้ยืนยันในกล่องถาม
   function logout() {
+    // ถ้าผู้ใช้กดยกเลิก ให้คงสถานะ login และอยู่หน้าเดิม
     if (!confirm("ออกจากระบบ?")) return;
+    // ลบข้อมูลผู้ใช้ออกจาก localStorage และแจ้งส่วนต่าง ๆ ในแอป
     clearUser();
+    // กลับไปยังหน้า Login ที่ URL /
     navigate("/");
   }
 
@@ -74,6 +83,7 @@ export default function AdminLayout({ title, subtitle, children }) {
               {user.first_name} {user.last_name}
               {user.position_name ? ` (${user.position_name})` : ""}
             </span>
+            {/* เรียก logout เมื่อผู้ใช้กดปุ่มออกจากระบบ */}
             <button
               type="button"
               className="btn btn-outline btn-sm"

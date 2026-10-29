@@ -35,6 +35,7 @@ function fmtDateTime(t) {
 }
 
 export default function Bookings() {
+  // ใช้ user_id ของบัญชี Login เพื่อดึงเฉพาะรายการจองของผู้ใช้คนนี้
   const user = getUser();
   const navigate = useNavigate();
   const [list, setList] = useState([]);
@@ -43,6 +44,7 @@ export default function Bookings() {
   const [qrItems, setQrItems] = useState(null);
 
   function load() {
+    // ไม่เรียก API หากไม่มีผู้ใช้
     if (!user) return;
     api.getBookings({ user_id: user.user_id })
       .then(setList)
@@ -51,6 +53,7 @@ export default function Bookings() {
   }
 
   useEffect(() => {
+    // guard เพิ่มในหน้า: หากไม่มี Login ให้กลับไปหน้าเริ่มต้นแทนการโหลดรายการจอง
     if (!user) {
       navigate('/');
       return;

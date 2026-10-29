@@ -1,5 +1,7 @@
 const API = "/api";
 
+// ตัวเรียก API กลาง: เติม prefix /api, ส่ง JSON และแปลง response
+// response ที่ไม่ใช่สถานะสำเร็จจะถูกแปลงเป็น Error เพื่อให้หน้าแสดงข้อความได้
 async function req(path, options = {}) {
   const res = await fetch(API + path, {
     headers: { "Content-Type": "application/json", ...options.headers },
@@ -39,7 +41,9 @@ export function sortByNumericId(items, idKey) {
 }
 
 export const api = {
+  // Login ส่งชื่อผู้ใช้และรหัสผ่านไปให้ server ตรวจสอบ
   login: (username, password) => req("/login", { method: "POST", body: JSON.stringify({ username, password }) }),
+  // สมัครบัญชีผู้ใช้บริการใหม่
   register: (body) => req("/register", { method: "POST", body: JSON.stringify(body) }),
 
   getRoutes: () => req("/routes").then((items) => sortByNumericId(items, "route_id")),

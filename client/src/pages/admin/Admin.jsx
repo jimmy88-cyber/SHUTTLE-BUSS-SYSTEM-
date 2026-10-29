@@ -8,8 +8,10 @@ import SortableHeader from "../../components/SortableHeader";
 import { useSortableRows } from "../../hooks/useSortableRows";
 
 export default function Admin() {
+  // ใช้บัญชีที่ Login อยู่เพื่อตรวจสิทธิ์ของข้อมูลสรุปบนแดชบอร์ด
   const user = getUser();
   const permission = getPermissionBits(user?.permission, user?.position_id);
+  // ดึงรายการจองและรอบรถมาแสดงเฉพาะเมื่อผู้ใช้มีสิทธิ์ของแต่ละส่วน
   const canViewBookings = permission[4] === "1";
   const canViewTrips = permission[3] === "1";
   const [stats, setStats] = useState(null);

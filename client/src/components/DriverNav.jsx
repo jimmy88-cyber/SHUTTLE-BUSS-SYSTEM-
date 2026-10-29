@@ -14,10 +14,14 @@ const ADMIN_LINKS = [
   { bit: 10, path: "/admin/reports", icon: "📈", label: "รายงาน" },
 ];
 
+// แสดง navigation สำหรับคนขับตามสิทธิ์ที่บัญชีได้รับ
 export default function DriverNav() {
   const { pathname } = useLocation();
   const user = useCurrentUser();
   const permission = getPermissionBits(user?.permission, user?.position_id);
+  // รวมเฉพาะลิงก์ที่ permission อนุญาต:
+  // หน้าคนขับใช้ bit 9, เมนูแอดมินใช้ bit ของแต่ละรายการ,
+  // และหน้า passenger portal ใช้ bit 8
   const permittedLinks = [
     ...(permission[9] === "1"
       ? [{ path: "/driver", icon: "🚐", label: "หน้าคนขับ" }]

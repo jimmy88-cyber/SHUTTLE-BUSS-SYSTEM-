@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../api/client';
 
+// หน้าสมัครบัญชีผู้ใช้บริการ ซึ่งเมื่อสำเร็จจะพากลับหน้า Login
 export default function Register() {
+  // เก็บข้อมูลที่จะส่งให้ API สร้างบัญชีใหม่
   const [form, setForm] = useState({
     username: '',
     password: '',
@@ -15,18 +17,22 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // อัปเดตเฉพาะ field ที่ผู้ใช้แก้ โดยคงค่าของ field อื่นไว้
   function update(k, v) {
     setForm((f) => ({ ...f, [k]: v }));
   }
 
+  // ส่งข้อมูลสมัครสมาชิก; ไม่ได้ Login อัตโนมัติหลังสมัครสำเร็จ
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     setSuccess('');
     setLoading(true);
     try {
+      // POST ข้อมูลบัญชีไปยัง API register
       await api.register(form);
       setSuccess('สมัครสมาชิกสำเร็จ! กำลังไปหน้าเข้าสู่ระบบ...');
+      // รอให้ผู้ใช้เห็นข้อความสำเร็จ แล้วเปลี่ยนไปหน้า Login
       setTimeout(() => navigate('/'), 1500);
     } catch (err) {
       setError(err.message);
@@ -43,6 +49,7 @@ export default function Register() {
           <h1>สมัครสมาชิก</h1>
           <p>สำหรับผู้ใช้บริการรถรับส่ง</p>
         </div>
+        {/* แสดงผลการสมัคร ไม่ว่าจะ error หรือสำเร็จ */}
         {error && <div className="error-msg">{error}</div>}
         {success && <div className="success-msg">{success}</div>}
         <form onSubmit={handleSubmit}>

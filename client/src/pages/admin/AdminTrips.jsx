@@ -73,7 +73,8 @@ export default function AdminTrips() {
     api.getVehicles().then(setVehicles).catch(console.error);
     api
       .getUsers()
-      // คนขับ = พนักงานที่ตำแหน่งมีสิทธิ์ "หน้าคนขับ" (หลักที่ 10) ไม่ผูกกับรหัสตำแหน่ง
+      // เลือกเฉพาะพนักงานที่มี permission หน้าคนขับ (bit 9)
+      // การตรวจ permission แทนการอิงรหัสตำแหน่ง ทำให้เปลี่ยนตำแหน่งได้ยืดหยุ่น
       .then((u) =>
         setDrivers(
           u.filter(

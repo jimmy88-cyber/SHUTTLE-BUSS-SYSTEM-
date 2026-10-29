@@ -31,7 +31,9 @@ function statusLabel(status) {
 }
 
 export default function Driver() {
+  // ใช้ข้อมูล Login เพื่อโหลดรอบรถของคนขับคนนี้และตรวจ permission การสแกน
   const user = getUser();
+  // bit 9 คือสิทธิ์เข้าใช้งานส่วนคนขับ/สแกน
   const canScan = getPermissionBits(user?.permission, user?.position_id)[9] === "1";
   const navigate = useNavigate();
   const [trips, setTrips] = useState([]);
@@ -48,6 +50,7 @@ export default function Driver() {
 
   useEffect(() => {
     if (!user) {
+      // ป้องกันการแสดงหน้าคนขับเมื่อไม่มีข้อมูล Login
       navigate("/");
       return;
     }
@@ -316,8 +319,10 @@ export default function Driver() {
             type="button"
             className="m-btn m-btn-ghost"
             onClick={() => {
+              // Logout ของคนขับ: ขอคำยืนยันก่อนล้างสถานะผู้ใช้
               if (confirm("ออกจากระบบ?")) {
                 clearUser();
+                // กลับไปยังหน้า Login หลังล้างข้อมูลผู้ใช้
                 navigate("/");
               }
             }}
