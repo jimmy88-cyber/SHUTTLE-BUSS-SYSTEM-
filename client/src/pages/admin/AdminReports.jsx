@@ -449,14 +449,27 @@ export default function AdminReports() {
                 </div>
               </div>
               {report3.list.length > 0 && (
-                <PieChart
-                  title="สัดส่วนพฤติกรรมโดยรวม"
-                  slices={[
-                    { name: "ขึ้นรถจริง", value: report3.totals.checkin, color: "#22c55e" },
-                    { name: "ยกเลิก", value: report3.totals.cancel, color: "#ef4444" },
-                    { name: "No Show", value: report3.totals.noshow, color: "#a855f7" },
-                  ].filter((s) => s.value > 0)}
-                />
+                <>
+                  <ClusteredBarChart
+                    title={`พฤติกรรมผู้ใช้\n(${dateLabel3})`}
+                    categories={report3.list.map((r) => r.name)}
+                    series={[
+                      { name: "การจองทั้งหมด", color: "#3b82f6", values: report3.list.map((r) => r.total) },
+                      { name: "ขึ้นรถจริง", color: "#f59e0b", values: report3.list.map((r) => r.checkin) },
+                      { name: "ยกเลิก", color: "#94a3b8", values: report3.list.map((r) => r.cancel) },
+                      { name: "No Show", color: "#eab308", values: report3.list.map((r) => r.noshow) },
+                    ]}
+                    height={300}
+                  />
+                  <PieChart
+                    title={`สัดส่วนรวม ลูกค้าทุกราย\n(${dateLabel3})`}
+                    slices={[
+                      { name: "ขึ้นรถจริง", value: report3.totals.checkin, color: "#3b82f6" },
+                      { name: "ยกเลิก", value: report3.totals.cancel, color: "#f59e0b" },
+                      { name: "No Show", value: report3.totals.noshow, color: "#94a3b8" },
+                    ].filter((s) => s.value > 0)}
+                  />
+                </>
               )}
             </>
           )}
