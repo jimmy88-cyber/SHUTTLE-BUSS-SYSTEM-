@@ -94,11 +94,11 @@ export const api = {
 
   getStats: () => req("/stats"),
   getReports: () => req("/reports"),
-  /** รายงานที่ 2 – สถิติการจองรายปี (SQL ฝั่ง Oracle) */
+
   getReportYearly: (year) => req("/reports/yearly" + qs({ year })),
-  /** รายงานที่ 3 – พฤติกรรมผู้ใช้ตามช่วงวันที่ */
+
   getReportBehavior: (from, to) => req("/reports/behavior" + qs({ from, to })),
-  /** รายงานที่ 7 – มอบหมายงานรถแต่ละประเภท */
+
   getReportVehicles: (from, to, type = "all") =>
     req("/reports/vehicles" + qs({ from, to, type })),
   getBoarding: () => req("/boarding").then((items) => sortByNumericId(items, "boarding_id")),

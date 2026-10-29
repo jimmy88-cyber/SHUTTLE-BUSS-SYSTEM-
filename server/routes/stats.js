@@ -39,28 +39,7 @@ router.get("/api/health", async (_req, res) => {
   }
 });
 
-/**
- * รายงานที่ 2 – สถิติการจองรายปี (แยกรายเดือน)
- * Query params: year=2025
- *
- * Oracle SQL หลัก:
- *   SELECT EXTRACT(MONTH FROM booked_at) AS month_no,
- *          COUNT(*) AS bookings,
- *          NVL(SUM(num_seats),0) AS seats,
- *          SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancel,
- *          SUM(CASE WHEN status <> 'cancelled'
- *                    AND EXISTS (SELECT 1 FROM BoardingRecord br
- *                                WHERE br.booking_id = Booking.booking_id)
- *                   THEN 1 ELSE 0 END) AS checkin,
- *          SUM(CASE WHEN status <> 'cancelled'
- *                    AND NOT EXISTS (SELECT 1 FROM BoardingRecord br
- *                                    WHERE br.booking_id = Booking.booking_id)
- *                   THEN 1 ELSE 0 END) AS noshow
- *   FROM Booking
- *   WHERE EXTRACT(YEAR FROM booked_at) = :year
- *   GROUP BY EXTRACT(MONTH FROM booked_at)
- *   ORDER BY month_no
- */
+
 router.get("/api/reports/yearly", async (req, res) => {
   try {
     const year = Number(req.query.year);
@@ -135,29 +114,6 @@ router.get("/api/reports/yearly", async (req, res) => {
   }
 });
 
-/**
- * รายงานที่ 3 – พฤติกรรมผู้ใช้ตามช่วงวันที่
- * Query params: from=YYYY-MM-DD&to=YYYY-MM-DD
- *
- * Oracle SQL หลัก:
- *   SELECT AppUser.first_name || ' ' || AppUser.last_name AS passenger_name,
- *          COUNT(*) AS total,
- *          SUM(CASE WHEN Booking.status = 'cancelled' THEN 1 ELSE 0 END) AS cancel,
- *          SUM(CASE WHEN Booking.status <> 'cancelled'
- *                    AND EXISTS (SELECT 1 FROM BoardingRecord br
- *                                WHERE br.booking_id = Booking.booking_id)
- *                   THEN 1 ELSE 0 END) AS checkin,
- *          SUM(CASE WHEN Booking.status <> 'cancelled'
- *                    AND NOT EXISTS (SELECT 1 FROM BoardingRecord br
- *                                    WHERE br.booking_id = Booking.booking_id)
- *                   THEN 1 ELSE 0 END) AS noshow
- *   FROM Booking, AppUser
- *   WHERE Booking.user_id = AppUser.user_id
- *     AND Booking.booked_at >= TO_TIMESTAMP(:from_dt, 'YYYY-MM-DD HH24:MI:SS')
- *     AND Booking.booked_at <= TO_TIMESTAMP(:to_dt,   'YYYY-MM-DD HH24:MI:SS')
- *   GROUP BY AppUser.first_name, AppUser.last_name
- *   ORDER BY total DESC
- */
 router.get("/api/reports/behavior", async (req, res) => {
   try {
     const from = req.query.from;
@@ -222,22 +178,6 @@ router.get("/api/reports/behavior", async (req, res) => {
   }
 });
 
-/**
- * รายงานที่ 7 – มอบหมายงานรถแต่ละประเภท
- * Query params: from=YYYY-MM-DD&to=YYYY-MM-DD&type=all|ชื่อประเภท
- *
- * Oracle SQL หลัก (รายละเอียด):
- *   SELECT VehicleType.name AS type_name,
- *          Vehicle.plate_number,
- *          COUNT(*) AS trips
- *   FROM Schedule, Vehicle, VehicleType
- *   WHERE Schedule.vehicle_id = Vehicle.vehicle_id
- *     AND Vehicle.vehicle_type_id = VehicleType.vehicle_type_id
- *     AND Schedule.departure_time >= TO_TIMESTAMP(:from_dt, 'YYYY-MM-DD HH24:MI:SS')
- *     AND Schedule.departure_time <= TO_TIMESTAMP(:to_dt,   'YYYY-MM-DD HH24:MI:SS')
- *   GROUP BY VehicleType.name, Vehicle.plate_number
- *   ORDER BY VehicleType.name, trips DESC
- */
 router.get("/api/reports/vehicles", async (req, res) => {
   try {
     const from = req.query.from;
