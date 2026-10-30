@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>แดชบอร์ด | Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container">
+      <div class="navbar-brand">🚌 <span>Shuttle</span> Admin</div>
+      <div class="user-info" id="user-display"></div>
+    </div>
+  </nav>
+
+  <div class="admin-layout">
+    <aside class="sidebar">
+      <ul class="sidebar-menu" id="sidebar-menu"></ul>
+    </aside>
+
+    <main class="main-content">
+      <div class="page-header" style="padding-top:0;">
+        <h1>แดชบอร์ด</h1>
+        <p>ภาพรวมระบบจองรถรับส่ง MUT</p>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon teal">🎫</div>
+          <div>
+            <div class="stat-value" id="stat-bookings">0</div>
+            <div class="stat-label">การจองทั้งหมด</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon blue">📅</div>
+          <div>
+            <div class="stat-value" id="stat-trips">0</div>
+            <div class="stat-label">รอบรถ (planned)</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon amber">🚌</div>
+          <div>
+            <div class="stat-value" id="stat-vehicles">0</div>
+            <div class="stat-label">รถทั้งหมด</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon rose">👥</div>
+          <div>
+            <div class="stat-value" id="stat-emps">0</div>
+            <div class="stat-label">พนักงาน</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">การจองล่าสุด</h2>
+            <a href="bookings.html" class="btn btn-outline btn-sm">ดูทั้งหมด</a>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>รหัส</th><th>ผู้จอง</th><th>รอบ</th><th>สถานะ</th></tr></thead>
+              <tbody id="recent-bookings"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">รอบรถใกล้เคียง</h2>
+            <a href="trips.html" class="btn btn-outline btn-sm">จัดการ</a>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>รหัส</th><th>เวลา</th><th>คนขับ</th><th>สถานะ</th></tr></thead>
+              <tbody id="recent-trips"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="../js/data.js"></script>
+  <script src="../js/admin-common.js"></script>
+  <script>
+    window.initAdminPage('dashboard');
+    window.checkPageRight(0);
+
+    document.getElementById('stat-bookings').textContent = window.BOOKINGS.length;
+    document.getElementById('stat-trips').textContent = window.TRIPS.filter(t => t.status === 'planned').length;
+    document.getElementById('stat-vehicles').textContent = window.VEHICLES.length;
+    document.getElementById('stat-emps').textContent = window.EMPLOYEES.length;
+
+    document.getElementById('recent-bookings').innerHTML = window.BOOKINGS.slice(0, 5).map(b => {
+      const u = window.USERS.find(x => x.code === b.user);
+      return `<tr>
+        <td>${b.code}</td>
+        <td>${u ? u.first : b.user}</td>
+        <td>${b.trip}</td>
+        <td><span class="badge badge-${b.status}">${b.status}</span></td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('recent-trips').innerHTML = window.TRIPS.slice(0, 5).map(t => `
+      <tr>
+        <td>${t.code}</td>
+        <td>${t.datetime.slice(0,16)}</td>
+        <td>${window.getEmpName(t.emp)}</td>
+        <td><span class="badge badge-${t.status}">${t.status}</span></td>
+      </tr>
+    `).join('');
+  </script>
+</body>
+</html>

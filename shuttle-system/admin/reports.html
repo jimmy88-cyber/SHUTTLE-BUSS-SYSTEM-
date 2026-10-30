@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>รายงาน | Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .report-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .report-tab {
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: white;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+      color: var(--text);
+    }
+    .report-tab:hover { border-color: var(--primary); color: var(--primary); }
+    .report-tab.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-end;
+      margin-bottom: 24px;
+      padding: 16px;
+      background: #f8fafc;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    .filter-bar .form-group { margin-bottom: 0; min-width: 140px; }
+    .filter-bar label { font-size: 0.85rem; margin-bottom: 4px; }
+    .chart-box {
+      text-align: center;
+      margin-top: 24px;
+      padding: 16px;
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    .chart-box img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+    }
+    .report-panel { display: none; }
+    .report-panel.active { display: block; }
+    .empty-report {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container">
+      <div class="navbar-brand">🚌 <span>Shuttle</span> Admin</div>
+      <div class="user-info" id="user-display"></div>
+    </div>
+  </nav>
+
+  <div class="admin-layout">
+    <aside class="sidebar">
+      <ul class="sidebar-menu" id="sidebar-menu"></ul>
+    </aside>
+
+    <main class="main-content">
+      <div class="page-header" style="padding-top:0;">
+        <h1>ระบบรายงาน</h1>
+        <p>เลือกรายงานและปีที่ต้องการดูสถิติ</p>
+      </div>
+
+      <!-- ปุ่มเลือกรายงาน -->
+      <div class="report-tabs">
+        <button class="report-tab active" data-report="2" onclick="selectReport(2)">รายงานที่ 2<br><small style="font-weight:400;opacity:0.85">สถิติการจองรายปี</small></button>
+        <button class="report-tab" data-report="3" onclick="selectReport(3)">รายงานที่ 3<br><small style="font-weight:400;opacity:0.85">พฤติกรรมผู้ใช้ตามช่วงวันที่</small></button>
+        <button class="report-tab" data-report="7" onclick="selectReport(7)">รายงานที่ 7<br><small style="font-weight:400;opacity:0.85">มอบหมายงานรถแต่ละประเภท</small></button>
+      </div>
+
+      <!-- ===== รายงานที่ 2 ===== -->
+      <div id="panel-2" class="report-panel active">
+        <div class="filter-bar">
+          <div class="form-group">
+            <label class="form-label">เลือกปี</label>
+            <select class="form-control" id="year-2" onchange="loadReport2()">
+              <option value="">-- เลือกปี --</option>
+              <option value="2567">2567</option>
+              <option value="2568" selected>2568</option>
+              <option value="2569">2569</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ประเภทข้อมูล</label>
+            <select class="form-control" id="type-2" onchange="loadReport2()">
+              <option value="all">ทั้งหมด (จอง / ยกเลิก / Check-in / No Show)</option>
+              <option value="checkin">เฉพาะ Check-in สำเร็จ</option>
+              <option value="cancel">เฉพาะการยกเลิก</option>
+              <option value="noshow">เฉพาะ No Show</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="loadReport2()">แสดงรายงาน</button>
+        </div>
+
+        <div id="report2-content">
+          <!-- จะถูกเติมเมื่อเลือกปี -->
+        </div>
+      </div>
+
+      <!-- ===== รายงานที่ 3 ===== -->
+      <div id="panel-3" class="report-panel">
+        <div class="filter-bar">
+          <div class="form-group">
+            <label class="form-label">วันเริ่มต้น</label>
+            <input type="date" class="form-control" id="date-from-3" value="2025-04-12">
+          </div>
+          <div class="form-group">
+            <label class="form-label">วันสิ้นสุด</label>
+            <input type="date" class="form-control" id="date-to-3" value="2025-04-15">
+          </div>
+          <button class="btn btn-primary" onclick="loadReport3()">แสดงรายงาน</button>
+        </div>
+        <div id="report3-content" class="empty-report">
+          <div class="icon" style="font-size:40px;margin-bottom:12px;">📅</div>
+          <p>เลือกช่วงวันที่ แล้วกด <strong>แสดงรายงาน</strong><br>
+          ตัวอย่าง: 12 เมษายน 2568 – 15 เมษายน 2568</p>
+        </div>
+      </div>
+
+      <!-- ===== รายงานที่ 7 ===== -->
+      <div id="panel-7" class="report-panel">
+        <div class="filter-bar">
+          <div class="form-group">
+            <label class="form-label">วันเริ่มต้น</label>
+            <input type="date" class="form-control" id="date-from-7" value="2025-04-01">
+          </div>
+          <div class="form-group">
+            <label class="form-label">วันสิ้นสุด</label>
+            <input type="date" class="form-control" id="date-to-7" value="2025-04-30">
+          </div>
+          <div class="form-group">
+            <label class="form-label">ประเภทรถ</label>
+            <select class="form-control" id="type-7">
+              <option value="all">ทุกประเภท</option>
+              <option value="ตู้">รถตู้ 9 ที่นั่ง</option>
+              <option value="บัส">รถบัส 20 ที่นั่ง</option>
+              <option value="มินิ">รถมินิบัส 15 ที่นั่ง</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="loadReport7()">แสดงรายงาน</button>
+        </div>
+        <div id="report7-content" class="empty-report">
+          <div class="icon" style="font-size:40px;margin-bottom:12px;">🚌</div>
+          <p>เลือกช่วงวันที่ แล้วกด <strong>แสดงรายงาน</strong><br>
+          ตัวอย่าง: 1 – 30 เมษายน 2568</p>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="../js/data.js"></script>
+  <script src="../js/admin-common.js"></script>
+  <script>
+    window.initAdminPage('reports'); // ใช้สิทธิ์แดชบอร์ด
+
+    // เพิ่มลิงก์รายงานใน sidebar
+    (function() {
+      const menu = document.getElementById('sidebar-menu');
+      if (menu) {
+        const li = document.createElement('li');
+        li.innerHTML = '<a href="reports.html" class="active">📈 รายงาน</a>';
+        menu.appendChild(li);
+      }
+    })();
+
+    // ข้อมูลตัวอย่างปี 2568 (จากรูปที่ให้มา)
+    const DATA_2568 = [
+      { month: 'ม.ค.', bookings: 320, seats: 950, cancel: 20, checkin: 910, noshow: 40 },
+      { month: 'ก.พ.', bookings: 300, seats: 880, cancel: 18, checkin: 850, noshow: 30 },
+      { month: 'มี.ค.', bookings: 340, seats: 1020, cancel: 25, checkin: 970, noshow: 50 },
+      { month: 'เม.ย.', bookings: 280, seats: 810, cancel: 15, checkin: 780, noshow: 30 },
+      { month: 'พ.ค.', bookings: 360, seats: 1050, cancel: 28, checkin: 1000, noshow: 50 },
+      { month: 'มิ.ย.', bookings: 370, seats: 1080, cancel: 30, checkin: 1020, noshow: 60 },
+      { month: 'ก.ค.', bookings: 400, seats: 1200, cancel: 35, checkin: 1140, noshow: 60 },
+      { month: 'ส.ค.', bookings: 420, seats: 1250, cancel: 32, checkin: 1190, noshow: 60 },
+      { month: 'ก.ย.', bookings: 390, seats: 1150, cancel: 27, checkin: 1100, noshow: 50 },
+      { month: 'ต.ค.', bookings: 410, seats: 1220, cancel: 30, checkin: 1160, noshow: 60 },
+      { month: 'พ.ย.', bookings: 430, seats: 1280, cancel: 33, checkin: 1220, noshow: 60 },
+      { month: 'ธ.ค.', bookings: 450, seats: 1350, cancel: 40, checkin: 1280, noshow: 70 }
+    ];
+
+    function selectReport(n) {
+      document.querySelectorAll('.report-tab').forEach(t => t.classList.remove('active'));
+      document.querySelector(`.report-tab[data-report="${n}"]`).classList.add('active');
+      document.querySelectorAll('.report-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + n).classList.add('active');
+    }
+
+    function loadReport2() {
+      const year = document.getElementById('year-2').value;
+      const type = document.getElementById('type-2').value;
+      const box = document.getElementById('report2-content');
+
+      if (!year) {
+        box.innerHTML = '<div class="empty-report"><p>กรุณาเลือกปี</p></div>';
+        return;
+      }
+
+      if (year !== '2568') {
+        box.innerHTML = `<div class="empty-report">
+          <div style="font-size:40px;margin-bottom:12px;">📭</div>
+          <p>ยังไม่มีข้อมูลสถิติปี <strong>${year}</strong><br>ลองเลือกปี <strong>2568</strong></p>
+        </div>`;
+        return;
+      }
+
+      // สรุปรวม
+      const tot = DATA_2568.reduce((a, r) => ({
+        bookings: a.bookings + r.bookings,
+        seats: a.seats + r.seats,
+        cancel: a.cancel + r.cancel,
+        checkin: a.checkin + r.checkin,
+        noshow: a.noshow + r.noshow
+      }), { bookings:0, seats:0, cancel:0, checkin:0, noshow:0 });
+
+      let cols = '';
+      if (type === 'all' || type === 'checkin') cols += '<th>Check-in สำเร็จ</th>';
+      if (type === 'all' || type === 'cancel') cols += '<th>การยกเลิก</th>';
+      if (type === 'all' || type === 'noshow') cols += '<th>No Show</th>';
+
+      const rows = DATA_2568.map(r => {
+        let cells = `<td>${r.month}</td><td>${r.bookings.toLocaleString()}</td><td>${r.seats.toLocaleString()}</td>`;
+        if (type === 'all' || type === 'checkin') cells += `<td>${r.checkin.toLocaleString()}</td>`;
+        if (type === 'all' || type === 'cancel') cells += `<td>${r.cancel.toLocaleString()}</td>`;
+        if (type === 'all' || type === 'noshow') cells += `<td>${r.noshow.toLocaleString()}</td>`;
+        return `<tr>${cells}</tr>`;
+      }).join('');
+
+      let totalCells = `<td><strong>รวม</strong></td><td><strong>${tot.bookings.toLocaleString()}</strong></td><td><strong>${tot.seats.toLocaleString()}</strong></td>`;
+      if (type === 'all' || type === 'checkin') totalCells += `<td><strong>${tot.checkin.toLocaleString()}</strong></td>`;
+      if (type === 'all' || type === 'cancel') totalCells += `<td><strong>${tot.cancel.toLocaleString()}</strong></td>`;
+      if (type === 'all' || type === 'noshow') totalCells += `<td><strong>${tot.noshow.toLocaleString()}</strong></td>`;
+
+      box.innerHTML = `
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <h2 class="card-title">สถิติการจอง ปี ${year}</h2>
+          </div>
+          <div class="stats-grid" style="margin-bottom:20px;">
+            <div class="stat-card"><div class="stat-icon teal">🎫</div><div><div class="stat-value">${tot.bookings.toLocaleString()}</div><div class="stat-label">จำนวนการจอง</div></div></div>
+            <div class="stat-card"><div class="stat-icon blue">💺</div><div><div class="stat-value">${tot.seats.toLocaleString()}</div><div class="stat-label">ที่นั่งที่ถูกจอง</div></div></div>
+            <div class="stat-card"><div class="stat-icon amber">❌</div><div><div class="stat-value">${tot.cancel.toLocaleString()}</div><div class="stat-label">การยกเลิก</div></div></div>
+            <div class="stat-card"><div class="stat-icon rose">✅</div><div><div class="stat-value">${tot.checkin.toLocaleString()}</div><div class="stat-label">Check-in สำเร็จ</div></div></div>
+            <div class="stat-card"><div class="stat-icon" style="background:#fee2e2;">👻</div><div><div class="stat-value">${tot.noshow.toLocaleString()}</div><div class="stat-label">No Show</div></div></div>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>เดือน</th>
+                  <th>จำนวนการจอง</th>
+                  <th>จำนวนที่นั่งที่ถูกจอง</th>
+                  ${cols}
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+                <tr style="background:#f1f5f9;">${totalCells}</tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="chart-box">
+          <h3 style="margin-bottom:12px;color:var(--secondary);">ปี ${year} — Check-in / ยกเลิก / No Show (Clustered)</h3>
+          <img src="../images/report-chart-2568.png" alt="กราฟสถิติปี 2568" style="max-width:900px;">
+          <p style="margin-top:12px;font-size:0.85rem;color:var(--text-muted);">กราฟแสดงจำนวน Check-in สำเร็จ, การยกเลิก และ No Show รายเดือน</p>
+        </div>
+      `;
+    }
+
+    function loadReport3() {
+      const from = document.getElementById('date-from-3').value;
+      const to = document.getElementById('date-to-3').value;
+      const box = document.getElementById('report3-content');
+
+      if (!from || !to) {
+        box.innerHTML = '<div class="empty-report"><p>กรุณาเลือกช่วงวันที่</p></div>';
+        return;
+      }
+
+      // แปลงเป็นข้อความไทย (ตัวอย่างปี 2568)
+      function thDate(iso) {
+        const [y,m,d] = iso.split('-').map(Number);
+        const months = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+        return d + ' ' + months[m] + ' ' + (y + 543);
+      }
+      const rangeText = thDate(from) + ' - ' + thDate(to);
+
+      // ข้อมูลตัวอย่างตามที่ให้มา (ช่วง 12-15 เม.ย. 2568)
+      const isSample = (from === '2025-04-12' && to === '2025-04-15') ||
+                       (from.startsWith('2025-04') && to.startsWith('2025-04'));
+
+      if (!isSample && !(from <= '2025-04-15' && to >= '2025-04-12')) {
+        box.innerHTML = `<div class="empty-report">
+          <div style="font-size:40px;margin-bottom:12px;">📭</div>
+          <p>ยังไม่มีข้อมูลในช่วง <strong>${rangeText}</strong><br>
+          ลองช่วง <strong>12 เมษายน 2568 – 15 เมษายน 2568</strong></p>
+        </div>`;
+        return;
+      }
+
+      const users = [
+        { name: 'สมชาย ใจดี', total: 12, boarded: 11, cancel: 1, noshow: 0 },
+        { name: 'สมหมาย ใจรัก', total: 10, boarded: 9, cancel: 0, noshow: 1 },
+        { name: 'สมควร ใจงาม', total: 8, boarded: 7, cancel: 0, noshow: 1 },
+        { name: 'อารีรัตน์ ศรีสุข', total: 6, boarded: 5, cancel: 1, noshow: 0 },
+        { name: 'วรพล เทพทอง', total: 5, boarded: 4, cancel: 1, noshow: 0 }
+      ];
+      const sum = users.reduce((a,u)=>({
+        total: a.total+u.total, boarded: a.boarded+u.boarded,
+        cancel: a.cancel+u.cancel, noshow: a.noshow+u.noshow
+      }), {total:0,boarded:0,cancel:0,noshow:0});
+
+      // max สำหรับ bar width
+      const maxVal = Math.max(...users.map(u => u.total), 1);
+
+      box.innerHTML = `
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <h2 class="card-title">รายงานพฤติกรรมของผู้ใช้</h2>
+          </div>
+          <p style="margin-bottom:16px;color:var(--text-muted);">ช่วงวันที่ <strong>${rangeText}</strong></p>
+
+          <div class="stats-grid" style="margin-bottom:20px;">
+            <div class="stat-card"><div class="stat-icon teal">🎫</div><div><div class="stat-value">${sum.total}</div><div class="stat-label">การจองทั้งหมด</div></div></div>
+            <div class="stat-card"><div class="stat-icon blue">✅</div><div><div class="stat-value">${sum.boarded}</div><div class="stat-label">ขึ้นรถจริง</div></div></div>
+            <div class="stat-card"><div class="stat-icon amber">❌</div><div><div class="stat-value">${sum.cancel}</div><div class="stat-label">ยกเลิก</div></div></div>
+            <div class="stat-card"><div class="stat-icon rose">👻</div><div><div class="stat-value">${sum.noshow}</div><div class="stat-label">No Show</div></div></div>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ผู้ใช้</th>
+                  <th>การจองทั้งหมด</th>
+                  <th>ขึ้นรถจริง</th>
+                  <th>ยกเลิก</th>
+                  <th>No Show</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${users.map(u => `<tr>
+                  <td>${u.name}</td>
+                  <td>${u.total}</td>
+                  <td>${u.boarded}</td>
+                  <td>${u.cancel}</td>
+                  <td>${u.noshow}</td>
+                </tr>`).join('')}
+                <tr style="background:#f1f5f9;font-weight:700;">
+                  <td>รวมทั้งหมด</td>
+                  <td>${sum.total}</td>
+                  <td>${sum.boarded}</td>
+                  <td>${sum.cancel}</td>
+                  <td>${sum.noshow}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- กราฟแท่ง (HTML/CSS จากข้อมูล) -->
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <h2 class="card-title">พฤติกรรมผู้ใช้ (${rangeText})</h2>
+          </div>
+          <div style="padding:8px 0 16px;">
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;font-size:0.85rem;">
+              <span><span style="display:inline-block;width:12px;height:12px;background:#3b82f6;border-radius:2px;margin-right:4px;"></span>การจองทั้งหมด</span>
+              <span><span style="display:inline-block;width:12px;height:12px;background:#f97316;border-radius:2px;margin-right:4px;"></span>ขึ้นรถจริง</span>
+              <span><span style="display:inline-block;width:12px;height:12px;background:#94a3b8;border-radius:2px;margin-right:4px;"></span>ยกเลิก</span>
+              <span><span style="display:inline-block;width:12px;height:12px;background:#eab308;border-radius:2px;margin-right:4px;"></span>No Show</span>
+            </div>
+            ${users.map(u => `
+              <div style="margin-bottom:14px;">
+                <div style="font-size:0.9rem;font-weight:600;margin-bottom:4px;">${u.name}</div>
+                <div style="display:flex;gap:4px;align-items:flex-end;height:28px;">
+                  <div title="จอง ${u.total}" style="width:${(u.total/maxVal)*100}%;max-width:70%;height:100%;background:#3b82f6;border-radius:4px 4px 0 0;min-width:8px;"></div>
+                  <div title="ขึ้น ${u.boarded}" style="width:${(u.boarded/maxVal)*100}%;max-width:70%;height:85%;background:#f97316;border-radius:4px 4px 0 0;min-width:8px;"></div>
+                  <div title="ยกเลิก ${u.cancel}" style="width:${Math.max(u.cancel/maxVal*100, u.cancel?3:0)}%;height:50%;background:#94a3b8;border-radius:4px 4px 0 0;"></div>
+                  <div title="NoShow ${u.noshow}" style="width:${Math.max(u.noshow/maxVal*100, u.noshow?3:0)}%;height:50%;background:#eab308;border-radius:4px 4px 0 0;"></div>
+                </div>
+                <div style="font-size:0.75rem;color:#64748b;margin-top:2px;">จอง ${u.total} · ขึ้น ${u.boarded} · ยกเลิก ${u.cancel} · NoShow ${u.noshow}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- กราฟวงกลม (รูปที่ให้มา) -->
+        <div class="chart-box">
+          <h3 style="margin-bottom:12px;color:var(--secondary);">สัดส่วนรวม ลูกค้าทุกราย<br><small style="font-weight:400;color:var(--text-muted);">(${rangeText})</small></h3>
+          <img src="../images/report3-pie.png" alt="กราฟวงกลมสัดส่วน" style="max-width:520px;">
+          <p style="margin-top:12px;font-size:0.85rem;color:var(--text-muted);">
+            ขึ้นรถจริง ${sum.boarded} (${Math.round(sum.boarded/sum.total*100)}%) ·
+            ยกเลิก ${sum.cancel} (${Math.round(sum.cancel/sum.total*100)}%) ·
+            No Show ${sum.noshow} (${Math.round(sum.noshow/sum.total*100)}%)
+          </p>
+        </div>
+      `;
+    }
+
+    function loadReport7() {
+      const from = document.getElementById('date-from-7').value;
+      const to = document.getElementById('date-to-7').value;
+      const typeFilter = document.getElementById('type-7').value;
+      const box = document.getElementById('report7-content');
+
+      if (!from || !to) {
+        box.innerHTML = '<div class="empty-report"><p>กรุณาเลือกช่วงวันที่</p></div>';
+        return;
+      }
+
+      function thDate(iso) {
+        const [y,m,d] = iso.split('-').map(Number);
+        const months = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+        return d + ' ' + months[m] + ' ' + (y + 543);
+      }
+      const rangeText = thDate(from) + ' - ' + thDate(to);
+
+      // ข้อมูลตัวอย่าง 1-30 เม.ย. 2568
+      const isApril2568 = from.startsWith('2025-04') && to.startsWith('2025-04');
+      if (!isApril2568) {
+        box.innerHTML = `<div class="empty-report">
+          <div style="font-size:40px;margin-bottom:12px;">📭</div>
+          <p>ยังไม่มีข้อมูลในช่วง <strong>${rangeText}</strong><br>
+          ลองช่วง <strong>1 – 30 เมษายน 2568</strong></p>
+        </div>`;
+        return;
+      }
+
+      const data = [
+        { type: 'รถตู้ 9 ที่นั่ง', plate: 'สย 2591', rounds: 28, key: 'ตู้' },
+        { type: 'รถตู้ 9 ที่นั่ง', plate: 'สย 2599', rounds: 25, key: 'ตู้' },
+        { type: 'รถตู้ 9 ที่นั่ง', plate: 'ชย 7788', rounds: 10, key: 'ตู้' },
+        { type: 'รถบัส 20 ที่นั่ง', plate: 'บก 1130', rounds: 22, key: 'บัส' },
+        { type: 'รถบัส 20 ที่นั่ง', plate: 'กข 4455', rounds: 15, key: 'บัส' },
+        { type: 'รถมินิบัส 15 ที่นั่ง', plate: 'นน 5566', rounds: 12, key: 'มินิ' },
+        { type: 'รถมินิบัส 15 ที่นั่ง', plate: 'นม 8899', rounds: 8, key: 'มินิ' }
+      ];
+
+      const filtered = typeFilter === 'all' ? data : data.filter(d => d.key === typeFilter);
+
+      // สรุปต่อประเภท
+      const summary = {};
+      filtered.forEach(d => {
+        summary[d.type] = (summary[d.type] || 0) + d.rounds;
+      });
+      const totalAll = filtered.reduce((s, d) => s + d.rounds, 0);
+
+      // สีต่อประเภท
+      const typeColor = {
+        'รถตู้ 9 ที่นั่ง': '#0d9488',
+        'รถบัส 20 ที่นั่ง': '#3b82f6',
+        'รถมินิบัส 15 ที่นั่ง': '#f59e0b'
+      };
+
+      box.innerHTML = `
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <h2 class="card-title">รายงานจำนวนการมอบหมายงานให้รถแต่ละประเภท</h2>
+          </div>
+          <p style="margin-bottom:16px;color:var(--text-muted);">ช่วงวันที่ <strong>${rangeText}</strong></p>
+
+          <div class="stats-grid" style="margin-bottom:20px;">
+            ${Object.entries(summary).map(([t, n]) => `
+              <div class="stat-card">
+                <div class="stat-icon" style="background:${typeColor[t]||'#e2e8f0'}22;color:${typeColor[t]||'#333'};font-size:14px;font-weight:700;">🚌</div>
+                <div>
+                  <div class="stat-value">${n}</div>
+                  <div class="stat-label">${t}</div>
+                </div>
+              </div>
+            `).join('')}
+            <div class="stat-card">
+              <div class="stat-icon teal">Σ</div>
+              <div>
+                <div class="stat-value">${totalAll}</div>
+                <div class="stat-label">รวมทั้งหมด</div>
+              </div>
+            </div>
+          </div>
+
+          <h3 style="font-size:1rem;margin-bottom:10px;">รายละเอียดแต่ละคัน</h3>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ประเภท</th>
+                  <th>รถ (ทะเบียน)</th>
+                  <th>จำนวนรอบ</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${filtered.map(d => `
+                  <tr>
+                    <td>${d.type}</td>
+                    <td><strong>${d.plate}</strong></td>
+                    <td>${d.rounds}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <h3 style="font-size:1rem;margin:20px 0 10px;">สรุปแต่ละประเภท</h3>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ประเภท</th>
+                  <th>รายละเอียด</th>
+                  <th>จำนวนรอบรวม</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${Object.entries(summary).map(([t, n]) => `
+                  <tr>
+                    <td>${t}</td>
+                    <td>รวม${t}</td>
+                    <td><strong>${n}</strong></td>
+                  </tr>
+                `).join('')}
+                <tr style="background:#f1f5f9;font-weight:700;">
+                  <td colspan="2">รวมทั้งหมด</td>
+                  <td>${totalAll}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- กราฟแท่งง่าย ๆ ต่อประเภท -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">จำนวนรอบแยกตามประเภทรถ</h2>
+          </div>
+          <div style="padding:16px 8px;">
+            ${Object.entries(summary).map(([t, n]) => {
+              const pct = Math.round(n / totalAll * 100);
+              return `
+                <div style="margin-bottom:16px;">
+                  <div style="display:flex;justify-content:space-between;font-size:0.9rem;margin-bottom:4px;">
+                    <span style="font-weight:600;">${t}</span>
+                    <span>${n} รอบ (${pct}%)</span>
+                  </div>
+                  <div style="height:28px;background:#f1f5f9;border-radius:8px;overflow:hidden;">
+                    <div style="height:100%;width:${pct}%;background:${typeColor[t]||'#0d9488'};border-radius:8px;display:flex;align-items:center;padding-left:10px;color:white;font-size:0.8rem;font-weight:600;min-width:40px;">
+                      ${n}
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // โหลดรายงานที่ 2 ทันที (ปี 2568)
+    loadReport2();
+  </script>
+</body>
+</html>

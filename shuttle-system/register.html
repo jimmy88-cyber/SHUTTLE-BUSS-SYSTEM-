@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>สมัครสมาชิก | Shuttle MUT</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .login-page { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(160deg, #0f766e 0%, #1e293b 100%); padding: 20px; }
+    .login-card { background: #fff; border-radius: 20px; padding: 28px 24px; width: 100%; max-width: 420px;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.25); }
+  </style>
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="font-size:36px;margin-bottom:8px;">🚌</div>
+        <h1 style="font-size:1.3rem;margin:0 0 4px;">สมัครสมาชิก</h1>
+        <p style="margin:0;color:#64748b;font-size:0.9rem;">สำหรับนักศึกษา / ผู้ใช้บริการ</p>
+      </div>
+
+      <form onsubmit="doRegister(event)">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">ชื่อ *</label>
+            <input type="text" class="form-control" id="reg-first" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">นามสกุล *</label>
+            <input type="text" class="form-control" id="reg-last" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">รหัสผู้ใช้ *</label>
+          <input type="text" class="form-control" id="reg-user" required placeholder="เช่น รหัสนักศึกษา">
+        </div>
+        <div class="form-group">
+          <label class="form-label">อีเมล *</label>
+          <input type="email" class="form-control" id="reg-email" required placeholder="xxx@mut.ac.th">
+        </div>
+        <div class="form-group">
+          <label class="form-label">เบอร์โทร *</label>
+          <input type="tel" class="form-control" id="reg-phone" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">รหัสผ่าน *</label>
+          <input type="password" class="form-control" id="reg-pass" required minlength="4">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ยืนยันรหัสผ่าน *</label>
+          <input type="password" class="form-control" id="reg-pass2" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" style="padding:14px;">สมัครสมาชิก</button>
+      </form>
+
+      <p style="text-align:center;margin-top:18px;font-size:0.9rem;color:#64748b;">
+        มีบัญชีแล้ว? <a href="index.html" style="color:#0d9488;font-weight:600;">เข้าสู่ระบบ</a>
+      </p>
+    </div>
+  </div>
+  <script src="js/data.js"></script>
+  <script>
+    function doRegister(e) {
+      e.preventDefault();
+      const first = document.getElementById('reg-first').value.trim();
+      const last = document.getElementById('reg-last').value.trim();
+      const username = document.getElementById('reg-user').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      const phone = document.getElementById('reg-phone').value.trim();
+      const pass = document.getElementById('reg-pass').value;
+      const pass2 = document.getElementById('reg-pass2').value;
+
+      if (pass !== pass2) { alert('รหัสผ่านไม่ตรงกัน'); return; }
+      if (window.USERS.some(u => u.username === username || u.email === email)) {
+        alert('รหัสผู้ใช้หรืออีเมลนี้มีอยู่แล้ว'); return;
+      }
+      const code = String(window.USERS.length + 1).padStart(3, '0');
+      window.USERS.push({ code, first, last, username, email, phone, password: pass });
+      // persist lightly
+      try { localStorage.setItem('shuttle_users', JSON.stringify(window.USERS)); } catch {}
+      alert('สมัครสำเร็จ! รหัสผู้ใช้: ' + username + '\nเข้าสู่ระบบได้เลย');
+      location.href = 'index.html';
+    }
+    // load extra users
+    try {
+      const extra = JSON.parse(localStorage.getItem('shuttle_users') || 'null');
+      if (extra && Array.isArray(extra)) window.USERS = extra;
+    } catch {}
+  </script>
+</body>
+</html>

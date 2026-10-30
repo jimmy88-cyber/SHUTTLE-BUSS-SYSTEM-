@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>การจอง</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/mobile.css">
+</head>
+<body class="m-body">
+  <div class="m-status"><span>Shuttle</span><span>การจอง</span></div>
+  <header class="m-header rounded"><h1>📋 การจองของฉัน</h1><p>QR · ยกเลิก · ประวัติ</p></header>
+  <div class="m-content">
+    <div class="m-chip-row">
+      <button class="m-chip active" onclick="filt('all',this)">ทั้งหมด</button>
+      <button class="m-chip" onclick="filt('booked',this)">จองแล้ว</button>
+      <button class="m-chip" onclick="filt('checked_in',this)">เสร็จ</button>
+      <button class="m-chip" onclick="filt('cancelled',this)">ยกเลิก</button>
+    </div>
+    <div id="list"></div>
+  </div>
+  <div id="modal" class="m-sheet-overlay" style="display:none;" onclick="this.style.display='none'">
+    <div class="m-sheet" onclick="event.stopPropagation()">
+      <div class="m-sheet-handle"></div>
+      <h2>QR Code</h2>
+      <div class="m-qr-box">
+        <div style="font-family:monospace;font-size:11px;line-height:1.15;margin-bottom:10px;">█████████████<br>█ ▄▄▄▄▄ █▀ ▄▄▄▄▄ █<br>█ █   █ ██ █   █ █<br>█ █▄▄▄█ █▀ █▄▄▄█ █<br>█▄▄▄▄▄▄▄█▄▄▄▄▄▄▄█</div>
+        <strong id="qrt">QR</strong>
+        <p style="font-size:0.78rem;color:#64748b;margin:6px 0 0;">แสดงให้คนขับสแกนเมื่อขึ้นรถ</p>
+      </div>
+      <button class="m-btn m-btn-outline" style="margin-top:12px;" onclick="document.getElementById('modal').style.display='none'">ปิด</button>
+    </div>
+  </div>
+  <nav class="m-nav">
+    <a href="home.html"><span class="ico">🗺️</span>เส้นทาง</a>
+    <a href="book.html"><span class="ico">🎫</span>จองรถ</a>
+    <a href="bookings.html" class="active"><span class="ico">📋</span>การจอง</a>
+  </nav>
+  <script src="../js/data.js"></script>
+  <script>
+    const session = window.requireLogin('passenger');
+    let f = 'all';
+    try { const b = JSON.parse(localStorage.getItem('shuttle_bookings')); if (b) window.BOOKINGS = b; } catch {}
+    // no_show (รอบถูกปิดแล้ว) แสดงเป็น success และนับอยู่ในกลุ่ม "เสร็จ"
+    const DONE = ['checked_in', 'no_show'];
+    function badge(st) {
+      const m = {booked:'m-badge-booked',checked_in:'m-badge-checked',cancelled:'m-badge-cancel',no_show:'m-badge-checked'};
+      const label = st === 'no_show' ? 'success' : st;
+      return `<span class="m-badge ${m[st]||''}">${label}</span>`;
+    }
+    function filt(x, el) { f=x; document.querySelectorAll('.m-chip').forEach(c=>c.classList.remove('active')); el.classList.add('active'); render(); }
+    function render() {
+      let list = window.BOOKINGS.filter(b => b.user === session.userCode);
+      if (f === 'checked_in') list = list.filter(b => DONE.includes(b.status));
+      else if (f !== 'all') list = list.filter(b => b.status === f);
+
+      // จัดกลุ่มตามรอบ (trip) — คนเดียวจองหลายที่ในรอบเดียวกัน = กลุ่มเดียว QR เดียว
+      const groups = {};
+      list.forEach(b => {
+        const key = b.trip;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(b);
+      });
+
+      const keys = Object.keys(groups).sort((a, b) => {
+        const ba = groups[a].some(x => x.status === 'booked') ? 0 : 1;
+        const bb = groups[b].some(x => x.status === 'booked') ? 0 : 1;
+        return ba - bb || a.localeCompare(b);
+      });
+
+      document.getElementById('list').innerHTML = keys.map(tripCode => {
+        const items = groups[tripCode];
+        const t = window.TRIPS.find(x => x.code === tripCode) || {};
+        const totalSeats = items.reduce((s, b) => s + b.seats, 0);
+        const hasBooked = items.some(b => b.status === 'booked');
+        // สถานะกลุ่ม
+        let st = 'booked';
+        if (items.every(b => b.status === 'cancelled')) st = 'cancelled';
+        else if (items.every(b => DONE.includes(b.status) || b.status === 'cancelled')) st = items.some(b => DONE.includes(b.status)) ? 'checked_in' : 'cancelled';
+        else if (items.some(b => DONE.includes(b.status))) st = 'checked_in';
+
+        const dropLines = items.map(b =>
+          `#${b.code} ${window.getStopName(b.pickup)} → ${window.getStopName(b.dropoff)} · ${b.seats} ที่`
+        ).join('<br>');
+
+        // QR ร่วมต่อคนต่อรอบ
+        const groupQr = items[0].qr || ('QR-' + session.userCode + '-' + tripCode);
+
+        return `<div class="m-card">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <strong>รอบ ${tripCode}</strong>${badge(st)}
+          </div>
+          <div style="font-size:0.82rem;color:#64748b;line-height:1.5;">
+            ${t.datetime || tripCode} · รวม ${totalSeats} ที่<br>
+            ${dropLines}
+          </div>
+          ${hasBooked ? `<div class="m-btn-row">
+            <button class="m-btn m-btn-primary m-btn-sm" onclick="qr('${groupQr}')">ดู QR</button>
+            <button class="m-btn m-btn-outline m-btn-sm" onclick="cancelTrip('${tripCode}')">ยกเลิกทั้งรอบ</button>
+          </div>` : ''}
+        </div>`;
+      }).join('') || '<div class="m-empty"><div class="big">📭</div>ไม่มีรายการ</div>';
+    }
+    function qr(c) { document.getElementById('qrt').textContent=c; document.getElementById('modal').style.display='flex'; }
+    function cancelTrip(tripCode) {
+      const items = window.BOOKINGS.filter(b => b.user === session.userCode && b.trip === tripCode && b.status === 'booked');
+      if (!items.length) return;
+      if (!confirm('ยกเลิกการจองรอบ ' + tripCode + ' ทั้งหมด (' + items.length + ' รายการ)?\nที่นั่งจะว่างกลับ')) return;
+      items.forEach(b => b.status = 'cancelled');
+      try { localStorage.setItem('shuttle_bookings', JSON.stringify(window.BOOKINGS)); } catch {}
+      render();
+    }
+    render();
+  </script>
+</body>
+</html>

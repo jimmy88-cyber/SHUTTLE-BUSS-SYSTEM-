@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>เส้นทาง & จุดจอด | Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <nav class="navbar"><div class="container">
+    <div class="navbar-brand">🚌 <span>Shuttle</span> Admin</div>
+    <div class="user-info" id="user-display"></div>
+  </div></nav>
+  <div class="admin-layout">
+    <aside class="sidebar"><ul class="sidebar-menu" id="sidebar-menu"></ul></aside>
+    <main class="main-content">
+      <div class="page-header" style="padding-top:0;"><h1>เส้นทางและจุดจอด</h1></div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          <h2 class="card-title">จุดจอด</h2>
+          <button class="btn btn-primary btn-sm" onclick="openStop()">+ เพิ่มจุดจอด</button>
+        </div>
+        <table>
+          <thead><tr><th>รหัส</th><th>ชื่อจุดจอด</th><th>จัดการ</th></tr></thead>
+          <tbody id="stop-tb"></tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          <h2 class="card-title">เส้นทาง</h2>
+          <button class="btn btn-primary btn-sm" onclick="openRoute()">+ เพิ่มเส้นทาง</button>
+        </div>
+        <table>
+          <thead><tr><th>รหัส</th><th>ชื่อ</th><th>เวลารวม</th><th>จัดการ</th></tr></thead>
+          <tbody id="route-tb"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">จุดจอดในเส้นทาง</h2>
+          <button class="btn btn-primary btn-sm" onclick="openRS()">+ เพิ่ม/แก้ไขจุดจอดในเส้นทาง</button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>เส้นทาง</th><th>ลำดับ</th><th>จุดจอด</th><th>นาทีจากจุดก่อน</th><th>จัดการ</th></tr></thead>
+            <tbody id="rs-tb"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="modal-stop" class="modal-overlay" style="display:none;" onclick="closeM('modal-stop')">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header"><h2 id="stop-title">เพิ่มจุดจอด</h2><button class="close-btn" onclick="closeM('modal-stop')">×</button></div>
+      <form onsubmit="saveStop(event)">
+        <input type="hidden" id="stop-idx" value="-1">
+        <div class="form-group"><label class="form-label">ชื่อจุดจอด *</label><input class="form-control" id="stop-name" required></div>
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <button type="button" class="btn btn-outline" style="flex:1;" onclick="closeM('modal-stop')">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" style="flex:2;">บันทึก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-route" class="modal-overlay" style="display:none;" onclick="closeM('modal-route')">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header"><h2 id="route-title">เพิ่มเส้นทาง</h2><button class="close-btn" onclick="closeM('modal-route')">×</button></div>
+      <form onsubmit="saveRoute(event)">
+        <input type="hidden" id="route-idx" value="-1">
+        <div class="form-group"><label class="form-label">รหัส *</label><input class="form-control" id="route-code" required placeholder="04"></div>
+        <div class="form-group"><label class="form-label">ชื่อเส้นทาง *</label><input class="form-control" id="route-name" required></div>
+        <div class="form-group"><label class="form-label">เวลารวม (นาที) *</label><input type="number" class="form-control" id="route-min" required min="1" value="15"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <button type="button" class="btn btn-outline" style="flex:1;" onclick="closeM('modal-route')">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" style="flex:2;">บันทึก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-rs" class="modal-overlay" style="display:none;" onclick="closeM('modal-rs')">
+    <div class="modal" style="max-width:760px;width:95%;max-height:90vh;overflow-y:auto;" onclick="event.stopPropagation()">
+      <div class="modal-header"><h2>จุดจอดในเส้นทาง</h2><button class="close-btn" onclick="closeM('modal-rs')">×</button></div>
+      <form onsubmit="saveRS(event)">
+        <div class="form-group"><label class="form-label">เส้นทาง *</label><select class="form-control" id="rs-route" required onchange="loadRSRows()"></select></div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th style="width:60px;">ลำดับ</th><th>จุดจอด</th><th style="width:140px;">นาทีจากจุดก่อน</th><th style="width:130px;">จัดการ</th></tr></thead>
+            <tbody id="rs-rows"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="addRSRow()">+ เพิ่มแถว</button>
+          <span>เวลารวม: <strong id="rs-total">0</strong> นาที</span>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <button type="button" class="btn btn-outline" style="flex:1;" onclick="closeM('modal-rs')">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" style="flex:2;">บันทึกทั้งหมด</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../js/data.js"></script>
+  <script src="../js/admin-common.js"></script>
+  <script>
+    window.initAdminPage('routes');
+    window.checkPageRight(2);
+    function closeM(id){document.getElementById(id).style.display='none';}
+
+    function render() {
+      document.getElementById('stop-tb').innerHTML = window.STOPS.map((s,i)=>`
+        <tr><td>${s.code}</td><td>${s.name}</td>
+        <td class="actions"><button class="btn btn-sm btn-outline" onclick="editStop(${i})">แก้ไข</button>
+        <button class="btn btn-sm btn-danger" onclick="if(confirm('ลบ?')){window.STOPS.splice(${i},1);render();}">ลบ</button></td></tr>`).join('');
+      document.getElementById('route-tb').innerHTML = window.ROUTES.map((r,i)=>`
+        <tr><td>${r.code}</td><td>${r.name}</td><td><strong>${r.totalMin} นาที</strong></td>
+        <td class="actions"><button class="btn btn-sm btn-outline" onclick="editRoute(${i})">แก้ไข</button>
+        <button class="btn btn-sm btn-danger" onclick="if(confirm('ลบ?')){window.ROUTES.splice(${i},1);render();}">ลบ</button></td></tr>`).join('');
+      document.getElementById('rs-tb').innerHTML = window.ROUTE_STOPS.map((rs,i)=>`
+        <tr><td>${window.getRouteName(rs.route)}</td><td>${rs.seq}</td><td>${window.getStopName(rs.stop)}</td><td>${rs.minFromPrev}</td>
+        <td class="actions"><button class="btn btn-sm btn-outline" onclick="openRS('${rs.route}')">แก้ไข</button>
+        <button class="btn btn-sm btn-danger" onclick="if(confirm('ลบ?')){window.ROUTE_STOPS.splice(${i},1);render();}">ลบ</button></td></tr>`).join('');
+    }
+
+    function openStop(){document.getElementById('stop-title').textContent='เพิ่มจุดจอด';document.getElementById('stop-idx').value=-1;document.getElementById('stop-name').value='';document.getElementById('modal-stop').style.display='flex';}
+    function editStop(i){const s=window.STOPS[i];document.getElementById('stop-title').textContent='แก้ไขจุดจอด';document.getElementById('stop-idx').value=i;document.getElementById('stop-name').value=s.name;document.getElementById('modal-stop').style.display='flex';}
+    function saveStop(e){e.preventDefault();const idx=+document.getElementById('stop-idx').value;const name=document.getElementById('stop-name').value.trim();
+      if(idx<0){const code=window.STOPS.length?Math.max(...window.STOPS.map(s=>+s.code))+1:1;window.STOPS.push({code,name});}
+      else window.STOPS[idx].name=name;
+      closeM('modal-stop');render();}
+
+    function openRoute(){document.getElementById('route-title').textContent='เพิ่มเส้นทาง';document.getElementById('route-idx').value=-1;document.getElementById('route-code').value='';document.getElementById('route-code').disabled=false;document.getElementById('route-name').value='';document.getElementById('route-min').value=15;document.getElementById('modal-route').style.display='flex';}
+    function editRoute(i){const r=window.ROUTES[i];document.getElementById('route-title').textContent='แก้ไขเส้นทาง';document.getElementById('route-idx').value=i;document.getElementById('route-code').value=r.code;document.getElementById('route-code').disabled=true;document.getElementById('route-name').value=r.name;document.getElementById('route-min').value=r.totalMin;document.getElementById('modal-route').style.display='flex';}
+    function saveRoute(e){e.preventDefault();const idx=+document.getElementById('route-idx').value;
+      const data={code:document.getElementById('route-code').value.trim(),name:document.getElementById('route-name').value.trim(),totalMin:+document.getElementById('route-min').value};
+      if(idx<0){if(window.ROUTES.some(r=>r.code===data.code)){alert('รหัสซ้ำ');return;}window.ROUTES.push(data);}
+      else Object.assign(window.ROUTES[idx],data);
+      closeM('modal-route');render();}
+
+    // ---------- จุดจอดในเส้นทาง: แก้ไขเป็นตาราง ----------
+    let rsRows = [];   // [{stop, min}] ของเส้นทางที่เลือก
+
+    function openRS(routeCode){
+      const sel=document.getElementById('rs-route');
+      sel.innerHTML=window.ROUTES.map(r=>`<option value="${r.code}">${r.name}</option>`).join('');
+      if(routeCode) sel.value=routeCode;
+      loadRSRows();
+      document.getElementById('modal-rs').style.display='flex';
+    }
+    function loadRSRows(){
+      const route=document.getElementById('rs-route').value;
+      rsRows=window.ROUTE_STOPS.filter(x=>x.route===route).sort((a,b)=>a.seq-b.seq).map(x=>({stop:x.stop,min:x.minFromPrev}));
+      if(!rsRows.length) rsRows=[{stop:window.STOPS[0]?.code,min:0}];
+      drawRSRows();
+    }
+    function drawRSRows(){
+      const opts=v=>window.STOPS.map(s=>`<option value="${s.code}" ${+s.code===+v?'selected':''}>${s.name}</option>`).join('');
+      document.getElementById('rs-rows').innerHTML=rsRows.map((r,i)=>`
+        <tr>
+          <td><strong>${i+1}</strong></td>
+          <td><select class="form-control" onchange="rsRows[${i}].stop=+this.value">${opts(r.stop)}</select></td>
+          <td>${i===0
+            ? '<input class="form-control" value="0 (จุดเริ่ม)" disabled>'
+            : `<input type="number" class="form-control" min="0" required value="${r.min}" oninput="rsRows[${i}].min=+this.value;rsTotal()">`}</td>
+          <td class="actions">
+            <button type="button" class="btn btn-sm btn-outline" onclick="moveRS(${i},-1)" ${i===0?'disabled':''}>▲</button>
+            <button type="button" class="btn btn-sm btn-outline" onclick="moveRS(${i},1)" ${i===rsRows.length-1?'disabled':''}>▼</button>
+            <button type="button" class="btn btn-sm btn-danger" onclick="delRS(${i})">ลบ</button>
+          </td>
+        </tr>`).join('');
+      rsTotal();
+    }
+    function rsTotal(){ document.getElementById('rs-total').textContent=rsRows.slice(1).reduce((s,r)=>s+(+r.min||0),0); }
+    function addRSRow(){ rsRows.push({stop:window.STOPS[0]?.code,min:5}); drawRSRows(); }
+    function delRS(i){ rsRows.splice(i,1); drawRSRows(); }
+    function moveRS(i,d){ const j=i+d; if(j<0||j>=rsRows.length) return; [rsRows[i],rsRows[j]]=[rsRows[j],rsRows[i]]; drawRSRows(); }
+
+    function saveRS(e){e.preventDefault();
+      const route=document.getElementById('rs-route').value;
+      if(!rsRows.length){ if(!confirm('ไม่มีจุดจอดเลย ต้องการลบจุดจอดทั้งหมดของเส้นทางนี้?')) return; }
+      for(let i=1;i<rsRows.length;i++) if(+rsRows[i].stop===+rsRows[i-1].stop){ alert('ลำดับ '+i+' และ '+(i+1)+' เป็นจุดเดียวกัน'); return; }
+      // แทนที่จุดจอดเดิมของเส้นทางนี้ทั้งหมดด้วยรายการในตาราง
+      window.ROUTE_STOPS=window.ROUTE_STOPS.filter(x=>x.route!==route).concat(
+        rsRows.map((r,i)=>({seq:i+1,route,stop:+r.stop,minFromPrev:i===0?0:+r.min})))
+        .sort((a,b)=>String(a.route).localeCompare(String(b.route))||a.seq-b.seq);
+      const rt=window.ROUTES.find(r=>r.code===route);
+      if(rt) rt.totalMin=rsRows.slice(1).reduce((s,r)=>s+(+r.min||0),0);
+      closeM('modal-rs');render();
+    }
+    render();
+  </script>
+</body>
+</html>

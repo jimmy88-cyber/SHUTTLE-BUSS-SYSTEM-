@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Shuttle MUT</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/mobile.css">
+  <style>
+    .tl{position:relative;padding-left:18px}
+    .tl::before{content:'';position:absolute;left:4px;top:4px;bottom:4px;width:2px;background:#0d9488;border-radius:1px}
+    .tl-i{position:relative;padding-bottom:12px}
+    .tl-i::before{content:'';position:absolute;left:-17px;top:3px;width:9px;height:9px;border-radius:50%;background:#0d9488;border:2px solid #fff;box-shadow:0 0 0 2px #0d9488}
+    .tl-i:last-child{padding-bottom:0}
+  </style>
+</head>
+<body class="m-body">
+  <div class="m-status"><span id="clock">09:41</span><span>LTE · 100%</span></div>
+  <header class="m-header rounded">
+    <div class="row">
+      <div>
+        <h1 id="greet">สวัสดี 👋</h1>
+        <p>จองรถรับส่ง MUT</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="m-btn m-btn-ghost" onclick="logout()">ออก</button>
+        <div class="avatar" id="av">?</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="m-content">
+    <div style="margin:4px 2px 10px;"><strong style="font-size:0.95rem;">🗺️ เส้นทางทั้งหมด</strong></div>
+    <div id="routes"></div>
+  </div>
+
+  <nav class="m-nav">
+    <a href="home.html" class="active"><span class="ico">🗺️</span>เส้นทาง</a>
+    <a href="book.html"><span class="ico">🎫</span>จองรถ</a>
+    <a href="bookings.html"><span class="ico">📋</span>การจอง</a>
+  </nav>
+
+  <script src="../js/data.js"></script>
+  <script>
+    const s = window.requireLogin('passenger');
+    document.getElementById('greet').textContent = 'สวัสดี, ' + s.name.split(' ')[0];
+    function logout() {
+      if (!confirm('ต้องการออกจากระบบ?')) return;
+      window.clearSession();
+      location.href = '../index.html';
+    }
+    document.getElementById('av').textContent = s.name.charAt(0);
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+
+    // แสดงเส้นทางทั้งหมด พร้อมจุดจอดและเวลา
+    document.getElementById('routes').innerHTML = window.ROUTES.map(r => {
+      const st = window.ROUTE_STOPS.filter(x => x.route === r.code).sort((a, b) => a.seq - b.seq);
+      return `<div class="m-card">
+        <div style="display:flex;justify-content:space-between;margin-bottom:10px;"><strong>${r.name}</strong><span class="m-badge m-badge-planned">${r.totalMin} นาที</span></div>
+        <div class="tl">${st.map(s => `<div class="tl-i"><div style="font-weight:600;font-size:0.88rem;">${window.getStopName(s.stop)}</div><div style="font-size:0.72rem;color:#64748b;">${s.minFromPrev === 0 ? 'จุดเริ่ม' : '+' + s.minFromPrev + ' นาที'}</div></div>`).join('')}</div>
+      </div>`;
+    }).join('') || '<div class="m-empty"><div class="big">🗺️</div>ยังไม่มีเส้นทาง</div>';
+  </script>
+</body>
+</html>
