@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>รอบการเดินรถ | Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container">
+      <div class="navbar-brand">🚌 <span>Shuttle</span> Admin</div>
+      <div class="user-info" id="user-display"></div>
+    </div>
+  </nav>
+  <div class="admin-layout">
+    <aside class="sidebar"><ul class="sidebar-menu" id="sidebar-menu"></ul></aside>
+    <main class="main-content">
+      <div class="page-header" style="padding-top:0;">
+        <h1>รอบการเดินรถ</h1>
+        <p>จัดคนขับ + รถ • ระบบตรวจสอบชน (รถ/คนขับเวลาเดียวกัน)</p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">รายการรอบรถ</h2>
+          <button class="btn btn-primary btn-sm" onclick="document.getElementById('add-trip').style.display='flex'">+ เพิ่มรอบ</button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>รหัส</th><th>วันเวลา</th><th>คนขับ</th><th>รถ</th><th>เส้นทาง</th><th>สถานะ</th></tr>
+            </thead>
+            <tbody id="trips-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="add-trip" class="modal-overlay" style="display:none;" onclick="this.style.display='none'">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header"><h2>เพิ่มรอบการเดินรถ</h2><button class="close-btn" onclick="document.getElementById('add-trip').style.display='none'">×</button></div>
+      <form onsubmit="addTrip(event)">
+        <div class="form-group"><label class="form-label">วันเวลา</label><input type="datetime-local" class="form-control" id="t-dt" required></div>
+        <div class="form-group"><label class="form-label">คนขับ</label>
+          <select class="form-control" id="t-emp" required></select>
+        </div>
+        <div class="form-group"><label class="form-label">รถ</label>
+          <select class="form-control" id="t-veh" required></select>
+        </div>
+        <div class="form-group"><label class="form-label">เส้นทาง</label>
+          <select class="form-control" id="t-route" required></select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">บันทึก (ตรวจชนอัตโนมัติ)</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="../js/data.js"></script>
+  <script src="../js/admin-common.js"></script>
+  <script>
+    window.initAdminPage('trips');
+    window.checkPageRight(3);
+
+    function render() {
+      document.getElementById('trips-table').innerHTML = window.TRIPS.map(t => `
+        <tr>
+          <td><strong>${t.code}</strong></td>
+          <td>${t.datetime}</td>
+          <td>${window.getEmpName(t.emp)}</td>
+          <td>${window.getVehicle(t.vehicle)}</td>
+          <td>${window.getRouteName(t.route)}</td>
+          <td><span class="badge badge-${t.status}">${t.status}</span></td>
+        </tr>
+      `).join('');
+    }
+    render();
+
+    // fill selects
+    document.getElementById('t-emp').innerHTML = window.EMPLOYEES.filter(e => e.pos === '03' || true).map(e =>
+      `<option value="${e.code}">${e.code} ${e.first} ${e.last}</option>`
+    ).join('');
+    document.getElementById('t-veh').innerHTML = window.VEHICLES
+      .filter(v => (v.status || 'active') === 'active')
+      .map(v => `<option value="${v.code}">${v.plate}</option>`)
+      .join('') || '<option value="">— ไม่มีรถที่ใช้งานได้ —</option>';
+    document.getElementById('t-route').innerHTML = window.ROUTES.map(r =>
+      `<option value="${r.code}">${r.name}</option>`
+    ).join('');
+
+    function addTrip(e) {
+      e.preventDefault();
+      const dt = document.getElementById('t-dt').value.replace('T', ' ') + ':00';
+      const emp = document.getElementById('t-emp').value;
+      const veh = document.getElementById('t-veh').value;
+      const route = document.getElementById('t-route').value;
+
+      // ตรวจชน: คนขับหรือรถ เวลาเดียวกัน
+      const conflict = window.TRIPS.find(t =>
+        t.datetime.startsWith(dt.slice(0, 16)) && (t.emp === emp || t.vehicle === veh) && t.status !== 'cancelled'
+      );
+      if (conflict) {
+        alert('ไม่สามารถบันทึกได้!\nข้อมูลชนกันกับรอบ ' + conflict.code +
+          '\n(คนขับหรือรถถูกใช้ในเวลาเดียวกัน)');
+        return;
+      }
+      const code = '0' + (window.TRIPS.length + 1).toString().padStart(3, '0');
+      window.TRIPS.push({ code, datetime: dt, emp, vehicle: veh, route, status: 'planned' });
+      render();
+      document.getElementById('add-trip').style.display = 'none';
+      alert('เพิ่มรอบ ' + code + ' สำเร็จ');
+    }
+  </script>
+</body>
+</html>

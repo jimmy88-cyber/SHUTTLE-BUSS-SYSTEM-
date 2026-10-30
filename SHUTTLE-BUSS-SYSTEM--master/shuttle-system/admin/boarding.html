@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>บันทึกขึ้นรถ | Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container">
+      <div class="navbar-brand">🚌 <span>Shuttle</span> Admin</div>
+      <div class="user-info" id="user-display"></div>
+    </div>
+  </nav>
+  <div class="admin-layout">
+    <aside class="sidebar"><ul class="sidebar-menu" id="sidebar-menu"></ul></aside>
+    <main class="main-content">
+      <div class="page-header" style="padding-top:0;"><h1>บันทึกการขึ้นรถ</h1></div>
+      <div class="card">
+        <table>
+          <thead><tr><th>รหัส</th><th>การจอง</th><th>รอบ</th><th>จุดขึ้น</th><th>พนักงาน</th><th>เวลา</th></tr></thead>
+          <tbody id="b-table"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+  <script src="../js/data.js"></script>
+  <script src="../js/admin-common.js"></script>
+  <script>
+    window.initAdminPage('boarding');
+    window.checkPageRight(5);
+    document.getElementById('b-table').innerHTML = window.BOARDING.map(b =>
+      `<tr>
+        <td>${b.code}</td>
+        <td>${b.booking}</td>
+        <td>${b.trip}</td>
+        <td>${window.getStopName(b.stop)}</td>
+        <td>${window.getEmpName(b.emp)}</td>
+        <td>${b.datetime}</td>
+      </tr>`
+    ).join('') || '<tr><td colspan="6" style="text-align:center;color:#94a3b8">ยังไม่มีข้อมูล</td></tr>';
+  </script>
+</body>
+</html>

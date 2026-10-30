@@ -1,0 +1,118 @@
+cells:
+  - kind: 2
+    value: "SELECT EXTRACT(MONTH FROM booked_at) AS เดือน,\r
+
+      \       COUNT(*) AS จำนวนการจอง,\r
+
+      \       SUM(num_seats) AS ที่นั่ง,\r
+
+      \       SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS ยกเลิก,\r
+
+      \       SUM(CASE WHEN status <> 'cancelled'\r
+
+      \                 AND booking_id IN (SELECT booking_id FROM
+      BoardingRecord)\r
+
+      \                THEN 1 ELSE 0 END) AS checkin,\r
+
+      \       SUM(CASE WHEN status <> 'cancelled'\r
+
+      \                 AND booking_id NOT IN (SELECT booking_id FROM
+      BoardingRecord)\r
+
+      \                THEN 1 ELSE 0 END) AS noshow\r
+
+      FROM Booking\r
+
+      WHERE EXTRACT(YEAR FROM booked_at) = 2025\r
+
+      GROUP BY EXTRACT(MONTH FROM booked_at)\r
+
+      ORDER BY เดือน;"
+    languageId: oracle-sql
+  - kind: 2
+    value: "SELECT u.first_name || ' ' || u.last_name AS ผู้ใช้,\r
+
+      \       COUNT(*) AS การจองทั้งหมด,\r
+
+      \       SUM(CASE WHEN b.status <> 'cancelled'\r
+
+      \                 AND b.booking_id IN (SELECT booking_id FROM
+      BoardingRecord)\r
+
+      \                THEN 1 ELSE 0 END) AS ขึ้นรถจริง,\r
+
+      \       SUM(CASE WHEN b.status = 'cancelled' THEN 1 ELSE 0 END) AS
+      ยกเลิก,\r
+
+      \       SUM(CASE WHEN b.status <> 'cancelled'\r
+
+      \                 AND b.booking_id NOT IN (SELECT booking_id FROM
+      BoardingRecord)\r
+
+      \                THEN 1 ELSE 0 END) AS noshow\r
+
+      FROM Booking b, AppUser u\r
+
+      WHERE b.user_id = u.user_id\r
+
+      \  AND b.booked_at >= TO_DATE('2025-04-12', 'YYYY-MM-DD')\r
+
+      \  AND b.booked_at <  TO_DATE('2025-04-16', 'YYYY-MM-DD')\r
+
+      GROUP BY u.first_name, u.last_name\r
+
+      ORDER BY การจองทั้งหมด DESC;"
+    languageId: oracle-sql
+  - kind: 2
+    value: "SELECT vt.name AS type_name,\r
+
+      \          v.plate_number,\r
+
+      \          COUNT(*) AS trips\r
+
+      FROM Schedule s, Vehicle v , VehicleType vt\r
+
+      WHERE s.vehicle_id = v.vehicle_id\r
+
+      \  AND v.vehicle_type_id = vt.vehicle_type_id\r
+
+      \  AND s.departure_time >= TO_DATE('2025-04-01', 'YYYY-MM-DD')\r
+
+      \  AND s.departure_time <  TO_DATE('2025-05-01', 'YYYY-MM-DD')\r
+
+      GROUP BY vt.name, v.plate_number\r
+
+      ORDER BY vt.name, trips DESC;\r\n"
+    languageId: oracle-sql
+  - kind: 2
+    value: "SELECT vt.name AS ประเภท,\r
+
+      \       COUNT(*) AS จำนวนรอบรวม\r
+
+      FROM Schedule s, Vehicle v, VehicleType vt\r
+
+      WHERE s.vehicle_id = v.vehicle_id\r
+
+      \  AND v.vehicle_type_id = vt.vehicle_type_id\r
+
+      \  AND s.departure_time >= TO_DATE('2025-04-01', 'YYYY-MM-DD')\r
+
+      \  AND s.departure_time <  TO_DATE('2025-05-01', 'YYYY-MM-DD')\r
+
+      GROUP BY vt.name\r
+
+      ORDER BY จำนวนรอบรวม DESC;\r
+
+      \r
+
+      \r
+
+      SELECT COUNT(*) AS รวมทั้งหมด\r
+
+      FROM Schedule s\r
+
+      WHERE s.departure_time >= TO_DATE('2025-04-01', 'YYYY-MM-DD')\r
+
+      \  AND s.departure_time <  TO_DATE('2025-05-01', 'YYYY-MM-DD');"
+    languageId: oracle-sql
